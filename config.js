@@ -98,11 +98,8 @@ const CONFIG = {
   },
 
   // ── WFS GBA LoD1 buildings ────────────────────────────────
-  // Routed through a proxy on the old IIS server (iis-proxy/wfs-proxy.ashx)
-  // instead of hitting the TUM GeoServer directly: that server has no CORS
-  // headers and blocks unrecognized origins/IPs, which GitHub Pages is.
   wfs: {
-    base:             "https://www.jbgap4.com/Rak/wfs-proxy.ashx",
+    base:             "https://tubvsig-so2sat-vm1.srv.mwn.de/geoserver/ows",
     typeName:         "global3D:lod1_global",
     minLoadZoom:      15,
     maxBboxWidthDeg:  0.08,   // degrees — viewport wider than this is rejected
