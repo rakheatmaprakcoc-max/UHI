@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title id="pageTitle">RAK LST &amp; 3D Buildings</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+  <link href="./styles.css" rel="stylesheet" />
+</head>
+<body>
+  <div id="map"></div>
+  <!-- floating temperature chip that follows the cursor over the active COG -->
+  <div id="raster-probe"></div>
+
+
+  <div id="panel">
+
+    <!-- ── Header (always visible, toggle collapses body) ── -->
+    <div class="panel-header">
+      <span class="title" id="lblPanelTitle">RAK LST &amp; 3D Buildings</span>
+      <button id="btnCollapse" title="Collapse panel">−</button>
+    </div>
+
+    <!-- ── Collapsible body ──────────────────────────────── -->
+    <div id="panel-body">
+
+      <div id="status">Loading map...</div>
+
+      <!-- Basemap switcher -->
+      <div class="section-label" id="lblBasemapSection">Basemap</div>
+      <div id="basemap-switcher" class="basemap-switcher"></div>
+
+      <!-- Layers -->
+      <div class="section-label" id="lblLayersSection">Layers</div>
+
+      <div class="layer-row">
+        <label class="layer-toggle">
+          <input type="checkbox" id="chkTerrain" />
+          <span id="lblTerrainLayer">DEM Terrain</span>
+        </label>
+      </div>
+
+      <div class="layer-row">
+        <label class="layer-toggle">
+          <input type="checkbox" id="chkWfs" />
+          <span id="lblWfsLayer">WFS GBA LoD1 Buildings</span>
+        </label>
+      </div>
+
+      <div class="layer-row">
+        <label class="layer-toggle">
+          <input type="checkbox" id="chkBuildings" />
+          <span id="lblBuildingsLayer">Buildings GeoJSON 3D</span>
+        </label>
+      </div>
+      <div id="buildings-loader">
+        <span id="buildings-loader-label">Loading</span>
+        <div class="loader-bar-track">
+          <div class="loader-bar-fill" id="buildings-loader-bar"></div>
+        </div>
+        <span id="buildings-loader-pct">0%</span>
+      </div>
+
+      <!-- Temperature COGs -->
+      <div class="section-label" id="lblCogSection" style="margin-top:10px">Temperature COG (LST)</div>
+
+      <div class="cog-group">
+        <div class="cog-season" id="lblSeasonSummer">Summer</div>
+        <div class="cog-radios">
+          <label><input type="radio" name="cog" value="cog-summer-2000" /> 2000</label>
+          <label><input type="radio" name="cog" value="cog-summer-2009" /> 2009</label>
+          <label><input type="radio" name="cog" value="cog-summer-2012" /> 2012</label>
+          <label><input type="radio" name="cog" value="cog-summer-2015" /> 2015</label>
+          <label><input type="radio" name="cog" value="cog-summer-2020" /> 2020</label>
+          <label><input type="radio" name="cog" value="cog-summer-2025" /> 2025</label>
+        </div>
+      </div>
+
+      <div class="cog-group">
+        <div class="cog-season" id="lblSeasonWinter">Winter</div>
+        <div class="cog-radios">
+          <label><input type="radio" name="cog" value="cog-winter-2000" /> 2000</label>
+          <label><input type="radio" name="cog" value="cog-winter-2009" /> 2009</label>
+          <label><input type="radio" name="cog" value="cog-winter-2012" /> 2012</label>
+          <label><input type="radio" name="cog" value="cog-winter-2015" /> 2015</label>
+          <label><input type="radio" name="cog" value="cog-winter-2020" /> 2020</label>
+          <label><input type="radio" name="cog" value="cog-winter-2025" /> 2025</label>
+        </div>
+      </div>
+
+      <div class="cog-none">
+        <label><input type="radio" name="cog" value="" checked /> None</label>
+      </div>
+
+      <!-- Raster opacity — shown only when a COG layer is active -->
+      <div id="cog-opacity-row" class="hidden">
+        <div class="section-label" style="margin-top:8px">Raster Opacity</div>
+        <div class="slider-row">
+          <input type="range" id="cogOpacity" min="0" max="100" value="78" />
+          <span id="cogOpacityVal">78%</span>
+        </div>
+      </div>
+
+      <!-- Temperature legend -->
+      <div class="legend">
+        <div class="legend-title" id="lblLegendTitle">LST (°C)</div>
+        <div class="legend-bar"></div>
+        <div class="legend-labels" id="lblLegendTicks">
+          <span>-30</span>
+          <span>0</span>
+          <span>15</span>
+          <span>40</span>
+          <span>60</span>
+        </div>
+      </div>
+
+      <!-- WFS controls — shown only when WFS layer is enabled -->
+      <div id="wfsControls" class="hidden">
+        <div class="section-label" style="margin-top:10px">WFS Controls</div>
+        <div class="row">
+          <label>
+            <input id="autoLoad" type="checkbox" checked />
+            Auto-load visible bbox
+          </label>
+        </div>
+        <div class="row">
+          <button id="btnLoad">Load visible</button>
+          <button id="btnClear">Clear cache</button>
+        </div>
+      </div>
+
+      <div class="small" id="lblFooterNote">COGs served via IIS. Buildings visible at zoom 15+.</div>
+
+    </div><!-- /panel-body -->
+  </div><!-- /panel -->
+
+  <div id="map-credits">
+    Built by <a href="mailto:jamil.garzuzi@gmail.com">Jamil Garzuzi</a>
+  </div>
+
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <!-- geotiff.js: COG/GeoTIFF parser with HTTP range-request support; exposes window.GeoTIFF -->
+  <script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js"></script>
+  <!-- config.js must be loaded before app.js — it defines the global CONFIG object -->
+  <script src="./config.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

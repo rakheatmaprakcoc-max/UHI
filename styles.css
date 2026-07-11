@@ -1,0 +1,395 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  font-family: Arial, sans-serif;
+}
+
+#map {
+  width: 100%;
+  height: 100%;
+}
+
+/* ── Panel shell ─────────────────────────────── */
+#panel {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  z-index: 10;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 10px 14px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  width: 300px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.28);
+  transition: width 0.15s ease;
+}
+
+/* Collapsed: shrink to header only */
+#panel.collapsed {
+  width: auto;
+  min-width: 0;
+  padding-bottom: 10px;
+}
+
+#panel.collapsed #panel-body {
+  display: none;
+}
+
+/* ── Panel header (always visible) ──────────── */
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+  white-space: nowrap;
+}
+
+.title {
+  font-weight: bold;
+  font-size: 14px;
+  flex: 1;
+}
+
+#btnCollapse {
+  flex-shrink: 0;
+  background: #f0f0f0;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+  line-height: 1;
+  color: #444;
+  padding: 1px 7px 2px;
+}
+
+#btnCollapse:hover {
+  background: #e0e0e0;
+}
+
+/* ── Panel body (collapsible) ────────────────── */
+#panel-body {
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+}
+
+/* ── Status ──────────────────────────────────── */
+#status {
+  margin-bottom: 4px;
+  line-height: 1.35;
+  color: #333;
+  font-size: 12px;
+  min-height: 16px;
+}
+
+/* ── Section headers ─────────────────────────── */
+.section-label {
+  font-size: 10px;
+  font-weight: bold;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #888;
+  border-top: 1px solid #e4e4e4;
+  padding-top: 7px;
+  margin-top: 8px;
+  margin-bottom: 4px;
+}
+
+/* ── Layer rows ──────────────────────────────── */
+.layer-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 5px 0;
+}
+
+.layer-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  flex: 1;
+}
+
+.layer-toggle input[type="checkbox"] {
+  cursor: pointer;
+}
+
+.badge-warn {
+  font-size: 10px;
+  font-weight: bold;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffc107;
+  white-space: nowrap;
+  cursor: help;
+}
+
+/* ── COG radio groups ────────────────────────── */
+.cog-group {
+  margin: 5px 0 2px 0;
+}
+
+.cog-season {
+  font-size: 11px;
+  font-weight: bold;
+  color: #444;
+  margin-bottom: 3px;
+}
+
+.cog-radios {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px 4px;
+}
+
+.cog-radios label {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.cog-none {
+  margin: 5px 0 2px 0;
+  font-size: 12px;
+}
+
+.cog-none label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+/* ── Opacity slider ──────────────────────────── */
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 2px;
+}
+
+.slider-row input[type="range"] {
+  flex: 1;
+  accent-color: #3366cc;
+  cursor: pointer;
+}
+
+.slider-row span {
+  font-size: 12px;
+  color: #444;
+  min-width: 32px;
+  text-align: right;
+}
+
+/* ── Temperature legend ──────────────────────── */
+.legend {
+  margin-top: 10px;
+  border-top: 1px solid #e4e4e4;
+  padding-top: 8px;
+}
+
+.legend-title {
+  font-size: 10px;
+  font-weight: bold;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #888;
+  margin-bottom: 4px;
+}
+
+.legend-bar {
+  height: 12px;
+  border-radius: 3px;
+  border: 1px solid #ccc;
+  background: linear-gradient(to right,
+    #0000FF  0%,
+    #00FFFF 25%,
+    #00FF00 50%,
+    #FFFF00 75%,
+    #FF8800 88%,
+    #FF0000 100%
+  );
+}
+
+.legend-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #666;
+  margin-top: 2px;
+}
+
+/* ── Basemap switcher ────────────────────────── */
+.basemap-switcher {
+  display: flex;
+  gap: 5px;
+  margin: 4px 0 2px;
+  flex-wrap: wrap;
+}
+
+.basemap-btn {
+  flex: 1;
+  padding: 4px 6px;
+  font-size: 11px;
+  font-weight: bold;
+  border: 1.5px solid #ccc;
+  border-radius: 4px;
+  background: #f5f5f5;
+  color: #555;
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.basemap-btn:hover {
+  background: #e4e4e4;
+}
+
+.basemap-btn.active {
+  background: #3366cc;
+  border-color: #2255bb;
+  color: #fff;
+}
+
+/* ── Buildings download loader (inline in panel) ── */
+#buildings-loader {
+  display: none;
+  align-items: center;
+  gap: 7px;
+  margin: 3px 0 6px 22px;
+  background: #eef3ff;
+  border: 1px solid #c5d5f5;
+  border-radius: 5px;
+  padding: 4px 8px;
+}
+
+#buildings-loader.visible {
+  display: flex;
+}
+
+#buildings-loader-label {
+  font-size: 10px;
+  font-weight: bold;
+  color: #3366cc;
+  white-space: nowrap;
+  letter-spacing: 0.03em;
+}
+
+#buildings-loader-label.done {
+  color: #2a9d2a;
+}
+
+.loader-bar-track {
+  flex: 1;
+  height: 5px;
+  background: #d0d8ef;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.loader-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: #3366cc;
+  border-radius: 3px;
+  transition: width 0.15s ease;
+}
+
+.loader-bar-fill.done {
+  background: #2a9d2a;
+}
+
+#buildings-loader-pct {
+  font-size: 10px;
+  color: #3366cc;
+  min-width: 28px;
+  text-align: right;
+  font-weight: bold;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+
+/* ── WFS controls ────────────────────────────── */
+.row {
+  margin-top: 6px;
+}
+
+button {
+  cursor: pointer;
+  padding: 5px 9px;
+  margin-right: 4px;
+  border: 1px solid #bbb;
+  border-radius: 4px;
+  background: #f5f5f5;
+  font-size: 12px;
+}
+
+button:hover {
+  background: #e8e8e8;
+}
+
+.hidden {
+  display: none;
+}
+
+.small {
+  margin-top: 10px;
+  font-size: 11px;
+  color: #777;
+  border-top: 1px solid #e4e4e4;
+  padding-top: 7px;
+}
+
+/* ── Map credits bar (bottom-centre of the map) ─ */
+#map-credits {
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(2px);
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #555;
+  white-space: nowrap;
+  pointer-events: auto;
+}
+
+#map-credits a {
+  color: #3366cc;
+  text-decoration: none;
+}
+
+#map-credits a:hover {
+  text-decoration: underline;
+}
+
+/* ── Floating temperature probe chip ─────────── */
+#raster-probe {
+  display: none;
+  position: absolute;
+  z-index: 20;
+  pointer-events: none;
+  background: rgba(20, 20, 20, 0.82);
+  color: #fff;
+  font-size: 12px;
+  font-family: Arial, sans-serif;
+  padding: 3px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+}
