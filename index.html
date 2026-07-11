@@ -40,7 +40,10 @@
         </label>
       </div>
 
-      <div class="layer-row">
+      <!-- WFS layer disabled in UI: TUM GeoServer blocks GitHub Pages' origin/IPs
+           with no CORS support. Code kept intact in config.js/app.js for reuse
+           on a host where the WFS endpoint is reachable. -->
+      <div class="layer-row hidden">
         <label class="layer-toggle">
           <input type="checkbox" id="chkWfs" />
           <span id="lblWfsLayer">WFS GBA LoD1 Buildings</span>
