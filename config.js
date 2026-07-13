@@ -41,7 +41,7 @@ const CONFIG = {
 
   // ── Temperature colour scale ──────────────────────────────
   // Applied to all COG rasters.  blue (tempMin) → cyan → green → yellow → red (tempMax)
-  tempMin: 10,   // °C — mapped to deep blue
+  tempMin: -10,   // °C — mapped to deep blue
   tempMax:  60,   // °C — mapped to deep red
 
   // ── COG layer catalogue ───────────────────────────────────
@@ -115,7 +115,7 @@ const CONFIG = {
     cogSeasonWinter: "Winter",
     legendTitle:     "LST (°C)",
     // Tick labels rendered under the colour bar — update if you change tempMin / tempMax
-    legendTicks:     ["10", "0", "15", "40", "60"],
+    legendTicks:     ["-10", "0", "15", "40", "60"],
     footerNote:      "COGs served via IIS. Buildings visible at zoom 15+.",
   },
 
@@ -136,7 +136,7 @@ const CONFIG = {
     // Color-ramp stops: [[tempCelsius, hexColor], ...]
     // Matches the COG raster scale — blue (cold) → cyan → green → yellow → orange → red (hot)
     colorStops: [
-      [10, "#0000FF"],
+      [-10, "#0000FF"],
       [  0, "#00CCFF"],
       [ 15, "#00FF88"],
       [ 30, "#FFFF00"],
