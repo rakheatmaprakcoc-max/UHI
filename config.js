@@ -41,7 +41,7 @@ const CONFIG = {
 
   // ── Temperature colour scale ──────────────────────────────
   // Applied to all COG rasters.  blue (tempMin) → cyan → green → yellow → red (tempMax)
-  tempMin: -10,   // °C — mapped to deep blue
+  tempMin: 10,   // °C — mapped to deep blue
   tempMax:  60,   // °C — mapped to deep red
 
   // ── COG layer catalogue ───────────────────────────────────
