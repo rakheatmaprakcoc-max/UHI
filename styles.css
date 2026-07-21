@@ -290,8 +290,8 @@ html, body {
   color: #fff;
 }
 
-/* ── Buildings download loader (inline in panel) ── */
-#buildings-loader {
+/* ── GeoJSON download loader (buildings, roads, ...) ── */
+.data-loader {
   display: none;
   align-items: center;
   gap: 7px;
@@ -302,11 +302,11 @@ html, body {
   padding: 4px 8px;
 }
 
-#buildings-loader.visible {
+.data-loader.visible {
   display: flex;
 }
 
-#buildings-loader-label {
+.data-loader-label {
   font-size: 10px;
   font-weight: bold;
   color: #3366cc;
@@ -314,7 +314,7 @@ html, body {
   letter-spacing: 0.03em;
 }
 
-#buildings-loader-label.done {
+.data-loader-label.done {
   color: #2a9d2a;
 }
 
@@ -338,7 +338,7 @@ html, body {
   background: #2a9d2a;
 }
 
-#buildings-loader-pct {
+.data-loader-pct {
   font-size: 10px;
   color: #3366cc;
   min-width: 28px;

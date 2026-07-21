@@ -56,12 +56,26 @@
           <span id="lblBuildingsLayer">Buildings GeoJSON 3D</span>
         </label>
       </div>
-      <div id="buildings-loader">
-        <span id="buildings-loader-label">Loading</span>
+      <div id="buildings-loader" class="data-loader">
+        <span id="buildings-loader-label" class="data-loader-label">Loading</span>
         <div class="loader-bar-track">
           <div class="loader-bar-fill" id="buildings-loader-bar"></div>
         </div>
-        <span id="buildings-loader-pct">0%</span>
+        <span id="buildings-loader-pct" class="data-loader-pct">0%</span>
+      </div>
+
+      <div class="layer-row">
+        <label class="layer-toggle">
+          <input type="checkbox" id="chkRoads" />
+          <span id="lblRoadsLayer">Roads</span>
+        </label>
+      </div>
+      <div id="roads-loader" class="data-loader">
+        <span id="roads-loader-label" class="data-loader-label">Loading</span>
+        <div class="loader-bar-track">
+          <div class="loader-bar-fill" id="roads-loader-bar"></div>
+        </div>
+        <span id="roads-loader-pct" class="data-loader-pct">0%</span>
       </div>
 
       <!-- Temperature COGs -->

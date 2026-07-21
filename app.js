@@ -30,6 +30,13 @@ const VAR_COLOR_EXPR = [
   "#888888"
 ];
 
+// Line width by road class; falls back to defaultWidth for any class not listed.
+const ROADS_WIDTH_EXPR = [
+  "match", ["get", CONFIG.roads.classField],
+  ...CONFIG.roads.widthStops.flatMap(([cls, w]) => [cls, w]),
+  CONFIG.roads.defaultWidth
+];
+
 // ── State ─────────────────────────────────────────────────────
 let abortController   = null;
 let debounceTimer     = null;
@@ -37,6 +44,7 @@ const loadedWfsFeatures = new Map();
 const cogImageCache   = {};   // id → { bbox, band, w, h } — band decoded once, repainted on range/re-select
 let activeCogId       = null;
 let buildingsAdded    = false;
+let roadsAdded        = false;
 let wfsEnabled        = false;
 
 const emptyFC = { type: "FeatureCollection", features: [] };
@@ -45,6 +53,7 @@ const emptyFC = { type: "FeatureCollection", features: [] };
 const statusEl       = document.getElementById("status");
 const chkWfs         = document.getElementById("chkWfs");
 const chkBuildings   = document.getElementById("chkBuildings");
+const chkRoads       = document.getElementById("chkRoads");
 const autoLoadEl     = document.getElementById("autoLoad");
 const btnLoad        = document.getElementById("btnLoad");
 const btnClear       = document.getElementById("btnClear");
@@ -68,6 +77,7 @@ document.getElementById("lblLayersSection").textContent     = CONFIG.labels.laye
 document.getElementById("lblTerrainLayer").textContent      = CONFIG.labels.terrainLayer;
 document.getElementById("lblWfsLayer").textContent          = CONFIG.labels.wfsLayer;
 document.getElementById("lblBuildingsLayer").textContent    = CONFIG.labels.buildingsLayer;
+document.getElementById("lblRoadsLayer").textContent         = CONFIG.labels.roadsLayer;
 document.getElementById("lblCogSection").textContent        = CONFIG.labels.cogSection;
 document.getElementById("lblSeasonSummer").textContent      = CONFIG.labels.cogSeasonSummer;
 document.getElementById("lblSeasonWinter").textContent      = CONFIG.labels.cogSeasonWinter;
@@ -189,6 +199,7 @@ map.on("load", () => {
   btnClear.addEventListener("click", clearWfsCache);
   chkWfs.addEventListener("change", onWfsToggle);
   chkBuildings.addEventListener("change", onBuildingsToggle);
+  chkRoads.addEventListener("change", onRoadsToggle);
   chkTerrain.addEventListener("change", onTerrainToggle);
 
   document.querySelectorAll('input[name="cog"]').forEach(radio => {
@@ -358,42 +369,71 @@ function onWfsToggle() {
   if (wfsEnabled) scheduleLoad();
 }
 
-// ── Buildings GeoJSON 3D ──────────────────────────────────────
-const buildingsLoaderEl    = document.getElementById("buildings-loader");
-const buildingsLoaderBar   = document.getElementById("buildings-loader-bar");
-const buildingsLoaderPct   = document.getElementById("buildings-loader-pct");
-const buildingsLoaderLabel = document.getElementById("buildings-loader-label");
+// ── GeoJSON download loader (shared by buildings + roads) ─────
+function makeLoaderRefs(prefix) {
+  return {
+    el:    document.getElementById(`${prefix}-loader`),
+    bar:   document.getElementById(`${prefix}-loader-bar`),
+    pct:   document.getElementById(`${prefix}-loader-pct`),
+    label: document.getElementById(`${prefix}-loader-label`),
+  };
+}
 
-function showBuildingsLoader(pct) {
-  buildingsLoaderEl.classList.add("visible");
-  buildingsLoaderLabel.textContent = "Loading";
-  buildingsLoaderLabel.classList.remove("done");
-  buildingsLoaderBar.classList.remove("done");
+function showLoader(refs, pct) {
+  refs.el.classList.add("visible");
+  refs.label.textContent = "Loading";
+  refs.label.classList.remove("done");
+  refs.bar.classList.remove("done");
   if (pct == null) {
-    buildingsLoaderBar.style.width = "100%";
-    buildingsLoaderBar.style.animation = "pulse 1.2s ease-in-out infinite";
-    buildingsLoaderPct.textContent = "";
+    refs.bar.style.width = "100%";
+    refs.bar.style.animation = "pulse 1.2s ease-in-out infinite";
+    refs.pct.textContent = "";
   } else {
-    buildingsLoaderBar.style.animation = "";
-    buildingsLoaderBar.style.width = pct + "%";
-    buildingsLoaderPct.textContent = pct + "%";
+    refs.bar.style.animation = "";
+    refs.bar.style.width = pct + "%";
+    refs.pct.textContent = pct + "%";
   }
 }
 
-function hideBuildingsLoader() {
+function hideLoader(refs) {
   // Flash "Loaded" in green for 1.5s then hide
-  buildingsLoaderBar.style.animation = "";
-  buildingsLoaderBar.style.width = "100%";
-  buildingsLoaderBar.classList.add("done");
-  buildingsLoaderLabel.textContent = "Loaded";
-  buildingsLoaderLabel.classList.add("done");
-  buildingsLoaderPct.textContent = "100%";
+  refs.bar.style.animation = "";
+  refs.bar.style.width = "100%";
+  refs.bar.classList.add("done");
+  refs.label.textContent = "Loaded";
+  refs.label.classList.add("done");
+  refs.pct.textContent = "100%";
   setTimeout(() => {
-    buildingsLoaderEl.classList.remove("visible");
-    buildingsLoaderBar.style.width = "0%";
-    buildingsLoaderBar.classList.remove("done");
+    refs.el.classList.remove("visible");
+    refs.bar.style.width = "0%";
+    refs.bar.classList.remove("done");
   }, 1500);
 }
+
+// Streams a GeoJSON URL with progress reported to the given loader, parses, returns it.
+async function fetchGeojsonWithProgress(url, loaderRefs) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+  const total  = parseInt(res.headers.get("Content-Length") || "0", 10);
+  const reader = res.body.getReader();
+  const chunks = [];
+  let received = 0;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    received += value.length;
+    showLoader(loaderRefs, total ? Math.round(received / total * 100) : null);
+  }
+
+  const text = await new Blob(chunks).text();
+  return JSON.parse(text);
+}
+
+// ── Buildings GeoJSON 3D ──────────────────────────────────────
+const buildingsLoaderRefs = makeLoaderRefs("buildings");
 
 async function onBuildingsToggle() {
   if (!chkBuildings.checked) {
@@ -406,36 +446,19 @@ async function onBuildingsToggle() {
 
   if (!buildingsAdded) {
     setStatus("Downloading buildings…");
-    showBuildingsLoader(0);
+    showLoader(buildingsLoaderRefs, 0);
 
     let geojson;
     try {
-      const res = await fetch(CONFIG.buildings.url);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-      const total  = parseInt(res.headers.get("Content-Length") || "0", 10);
-      const reader = res.body.getReader();
-      const chunks = [];
-      let received = 0;
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        chunks.push(value);
-        received += value.length;
-        showBuildingsLoader(total ? Math.round(received / total * 100) : null);
-      }
-
-      const text = await new Blob(chunks).text();
-      geojson = JSON.parse(text);
+      geojson = await fetchGeojsonWithProgress(CONFIG.buildings.url, buildingsLoaderRefs);
     } catch (err) {
-      hideBuildingsLoader();
+      hideLoader(buildingsLoaderRefs);
       setStatus(`Buildings error: ${err.message}`);
       chkBuildings.checked = false;
       return;
     }
 
-    hideBuildingsLoader();
+    hideLoader(buildingsLoaderRefs);
     setStatus("Rendering buildings…");
 
     map.addSource("buildings-local", {
@@ -492,6 +515,67 @@ async function onBuildingsToggle() {
   } else {
     map.setLayoutProperty("buildings-extrusion", "visibility", "visible");
     map.setLayoutProperty("buildings-outline",   "visibility", "visible");
+  }
+}
+
+// ── Roads GeoJSON ───────────────────────────────────────────────
+const roadsLoaderRefs = makeLoaderRefs("roads");
+
+async function onRoadsToggle() {
+  if (!chkRoads.checked) {
+    if (roadsAdded) {
+      map.setLayoutProperty("roads-line", "visibility", "none");
+    }
+    return;
+  }
+
+  if (!roadsAdded) {
+    setStatus("Downloading roads…");
+    showLoader(roadsLoaderRefs, 0);
+
+    let geojson;
+    try {
+      geojson = await fetchGeojsonWithProgress(CONFIG.roads.url, roadsLoaderRefs);
+    } catch (err) {
+      hideLoader(roadsLoaderRefs);
+      setStatus(`Roads error: ${err.message}`);
+      chkRoads.checked = false;
+      return;
+    }
+
+    hideLoader(roadsLoaderRefs);
+    setStatus("Rendering roads…");
+
+    map.addSource("roads-local", { type: "geojson", data: geojson });
+
+    map.addLayer({
+      id:      "roads-line",
+      type:    "line",
+      source:  "roads-local",
+      minzoom: CONFIG.roads.minzoom,
+      layout: { "line-cap": "round", "line-join": "round" },
+      paint: {
+        "line-color": CONFIG.roads.lineColor,
+        "line-width": ROADS_WIDTH_EXPR,
+      }
+    });
+
+    map.on("click", "roads-line", (e) => {
+      const p = e.features[0].properties || {};
+      new maplibregl.Popup()
+        .setLngLat(e.lngLat)
+        .setHTML(
+          `<b>Road</b><br>` +
+          `${p[CONFIG.roads.nameField] || "Unnamed"}<br>` +
+          `Class: ${p[CONFIG.roads.classField] || "n/a"}`
+        )
+        .addTo(map);
+    });
+
+    roadsAdded = true;
+    setStatus(`Roads layer active (visible at zoom ${CONFIG.roads.minzoom}+).`);
+  } else {
+    map.setLayoutProperty("roads-line", "visibility", "visible");
   }
 }
 

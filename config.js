@@ -113,6 +113,7 @@ const CONFIG = {
     terrainLayer:    "DEM Terrain",
     wfsLayer:        "WFS GBA LoD1 Buildings",
     buildingsLayer:  "Buildings Temperature (2025)",
+    roadsLayer:      "Roads",
     cogSection:      "Temperature COG (LST)",
     cogSeasonSummer: "Summer",
     cogSeasonWinter: "Winter",
@@ -144,5 +145,29 @@ const CONFIG = {
       [ 45, "#FF8800"],
       [ 60, "#FF0000"],
     ],
+  },
+
+  // ── Local roads GeoJSON ────────────────────────────────────
+  roads: {
+    url:     "./Data/rak_roads.geojson",
+    minzoom: 13,
+
+    // Field holding the road class, used to vary line width.
+    // OSM-derived exports use "highway" (motorway, primary, residential, ...).
+    classField: "highway",
+    widthStops: [
+      ["motorway",    3.5],
+      ["trunk",       3],
+      ["primary",     2.5],
+      ["secondary",   2],
+      ["tertiary",    1.5],
+      ["residential", 1],
+      ["service",     0.6],
+    ],
+    defaultWidth: 1,   // px, for any class not listed above
+    lineColor:    "#ffffff",
+
+    // Field holding the road's display name, shown in the click popup.
+    nameField: "name",
   },
 };
