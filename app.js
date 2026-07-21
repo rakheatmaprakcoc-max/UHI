@@ -516,7 +516,12 @@ function renderCogCanvas(band, w, h) {
       imgData.data[i * 4 + 3] = 0;   // transparent
       continue;
     }
-    const t = Math.max(0, Math.min(1, (v - TEMP_MIN) / (TEMP_MAX - TEMP_MIN)));
+    // Outside the current Min/Max symbology range — hide rather than clamp to the endpoint color
+    if (v < TEMP_MIN || v > TEMP_MAX) {
+      imgData.data[i * 4 + 3] = 0;   // transparent
+      continue;
+    }
+    const t = (v - TEMP_MIN) / (TEMP_MAX - TEMP_MIN);
     let r, g, b;
     if      (t < 0.25) { r = 0;   g = Math.round(t * 4 * 255);                    b = 255; }
     else if (t < 0.50) { r = 0;   g = 255; b = Math.round((1 - (t - 0.25) * 4) * 255); }
