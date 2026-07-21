@@ -190,6 +190,36 @@ html, body {
   text-align: right;
 }
 
+/* ── Symbology value range inputs ────────────── */
+.range-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0 2px;
+  font-size: 12px;
+  color: #444;
+}
+
+.range-row label {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.range-row input[type="number"] {
+  width: 48px;
+  padding: 2px 4px;
+  border: 1px solid #bbb;
+  border-radius: 3px;
+  font-size: 12px;
+}
+
+.range-row button {
+  padding: 3px 7px;
+  font-size: 11px;
+  margin-right: 0;
+}
+
 /* ── Temperature legend ──────────────────────── */
 .legend {
   margin-top: 10px;

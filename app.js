@@ -16,8 +16,9 @@ const MAX_BBOX_HEIGHT_DEG = CONFIG.wfs.maxBboxHeightDeg;
 const DEBOUNCE_MS         = CONFIG.wfs.debounceMs;
 
 const COG_LAYERS = CONFIG.cogLayers;
-const TEMP_MIN   = CONFIG.tempMin;
-const TEMP_MAX   = CONFIG.tempMax;
+// Mutable — the user can narrow/widen the symbology range live via the Value Range controls.
+let TEMP_MIN = CONFIG.tempMin;
+let TEMP_MAX = CONFIG.tempMax;
 
 // Build MapLibre color expression from config field + stops.
 // If the field is null (building has no extracted temperature), render grey instead of black.
@@ -33,7 +34,7 @@ const VAR_COLOR_EXPR = [
 let abortController   = null;
 let debounceTimer     = null;
 const loadedWfsFeatures = new Map();
-const cogImageCache   = {};   // id → { dataUrl } rendered once, reused on re-select
+const cogImageCache   = {};   // id → { bbox, band, w, h } — band decoded once, repainted on range/re-select
 let activeCogId       = null;
 let buildingsAdded    = false;
 let wfsEnabled        = false;
@@ -51,6 +52,10 @@ const wfsControlsEl  = document.getElementById("wfsControls");
 const cogOpacityRow  = document.getElementById("cog-opacity-row");
 const cogOpacityEl   = document.getElementById("cogOpacity");
 const cogOpacityValEl= document.getElementById("cogOpacityVal");
+const cogRangeRow    = document.getElementById("cog-range-row");
+const cogRangeMinEl  = document.getElementById("cogRangeMin");
+const cogRangeMaxEl  = document.getElementById("cogRangeMax");
+const btnRangeReset  = document.getElementById("btnRangeReset");
 const btnCollapse    = document.getElementById("btnCollapse");
 const panelEl        = document.getElementById("panel");
 const chkTerrain     = document.getElementById("chkTerrain");
@@ -67,9 +72,43 @@ document.getElementById("lblCogSection").textContent        = CONFIG.labels.cogS
 document.getElementById("lblSeasonSummer").textContent      = CONFIG.labels.cogSeasonSummer;
 document.getElementById("lblSeasonWinter").textContent      = CONFIG.labels.cogSeasonWinter;
 document.getElementById("lblLegendTitle").textContent       = CONFIG.labels.legendTitle;
-document.getElementById("lblLegendTicks").innerHTML         =
-  CONFIG.labels.legendTicks.map(t => `<span>${t}</span>`).join("");
 document.getElementById("lblFooterNote").textContent        = CONFIG.labels.footerNote;
+
+// ── Symbology value range (legend ticks recomputed from TEMP_MIN/TEMP_MAX) ──
+function updateLegendTicks() {
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map(f => Math.round(TEMP_MIN + f * (TEMP_MAX - TEMP_MIN)));
+  document.getElementById("lblLegendTicks").innerHTML = ticks.map(t => `<span>${t}</span>`).join("");
+}
+updateLegendTicks();
+cogRangeMinEl.value = TEMP_MIN;
+cogRangeMaxEl.value = TEMP_MAX;
+
+function applyRangeChange() {
+  const min = Number(cogRangeMinEl.value);
+  const max = Number(cogRangeMaxEl.value);
+  if (!Number.isFinite(min) || !Number.isFinite(max) || min >= max) {
+    setStatus("Invalid value range: min must be less than max.");
+    return;
+  }
+  TEMP_MIN = min;
+  TEMP_MAX = max;
+  updateLegendTicks();
+
+  if (activeCogId && cogImageCache[activeCogId]) {
+    const { band, w, h } = cogImageCache[activeCogId];
+    const dataUrl = renderCogCanvas(band, w, h);
+    map.getSource(`cog-src-${activeCogId}`).updateImage({ url: dataUrl });
+    setStatus(`Value range updated: ${TEMP_MIN}°C (blue) → ${TEMP_MAX}°C (red)`);
+  }
+}
+
+cogRangeMinEl.addEventListener("change", applyRangeChange);
+cogRangeMaxEl.addEventListener("change", applyRangeChange);
+btnRangeReset.addEventListener("click", () => {
+  cogRangeMinEl.value = CONFIG.tempMin;
+  cogRangeMaxEl.value = CONFIG.tempMax;
+  applyRangeChange();
+});
 
 // ── Basemap switcher buttons (built from config) ──────────────
 const basemapSwitcher = document.getElementById("basemap-switcher");
@@ -460,6 +499,38 @@ async function onBuildingsToggle() {
 // Reads the COG overview level to get a fast, medium-res snapshot of the whole
 // RAK extent, renders each pixel with the blue→red temperature ramp, and adds
 // the result as a MapLibre 'image' source/layer.
+// Paints one band array to a canvas using the current TEMP_MIN/TEMP_MAX range.
+// Pulled out of showCogLayer so the Value Range controls can re-render the
+// already-downloaded band without refetching the COG.
+function renderCogCanvas(band, w, h) {
+  const canvas  = document.createElement("canvas");
+  canvas.width  = w;
+  canvas.height = h;
+  const ctx     = canvas.getContext("2d");
+  const imgData = ctx.createImageData(w, h);
+
+  for (let i = 0; i < band.length; i++) {
+    const v = band[i];
+    // Physical range guard — values outside are nodata sentinels
+    if (v == null || !isFinite(v) || v < -100 || v > 150) {
+      imgData.data[i * 4 + 3] = 0;   // transparent
+      continue;
+    }
+    const t = Math.max(0, Math.min(1, (v - TEMP_MIN) / (TEMP_MAX - TEMP_MIN)));
+    let r, g, b;
+    if      (t < 0.25) { r = 0;   g = Math.round(t * 4 * 255);                    b = 255; }
+    else if (t < 0.50) { r = 0;   g = 255; b = Math.round((1 - (t - 0.25) * 4) * 255); }
+    else if (t < 0.75) { r = Math.round((t - 0.50) * 4 * 255); g = 255;           b = 0;   }
+    else               { r = 255; g = Math.round((1 - (t - 0.75) * 4) * 255);     b = 0;   }
+    imgData.data[i * 4 + 0] = r;
+    imgData.data[i * 4 + 1] = g;
+    imgData.data[i * 4 + 2] = b;
+    imgData.data[i * 4 + 3] = 200;   // ~78% opacity
+  }
+  ctx.putImageData(imgData, 0, 0);
+  return canvas.toDataURL("image/png");
+}
+
 async function showCogLayer(id) {
   // Remove currently active COG layer + source
   if (activeCogId) {
@@ -469,6 +540,7 @@ async function showCogLayer(id) {
   }
   if (!id) {
     cogOpacityRow.classList.add("hidden");
+    cogRangeRow.classList.add("hidden");
     setStatus("Map ready.");
     return;
   }
@@ -476,7 +548,8 @@ async function showCogLayer(id) {
   const def = COG_LAYERS.find(l => l.id === id);
   if (!def) return;
 
-  // Render to canvas once; cache the data-URL for instant re-selection
+  // Fetch + decode the band once; cache it so range changes and re-selection
+  // repaint instantly instead of refetching the COG.
   if (!cogImageCache[id]) {
     setStatus(`Loading ${def.season} ${def.label} COG…`);
     try {
@@ -498,33 +571,8 @@ async function showCogLayer(id) {
       const h = target.getHeight();
       const [band] = await target.readRasters({ interleave: false });
 
-      const canvas  = document.createElement("canvas");
-      canvas.width  = w;
-      canvas.height = h;
-      const ctx     = canvas.getContext("2d");
-      const imgData = ctx.createImageData(w, h);
-
-      for (let i = 0; i < band.length; i++) {
-        const v = band[i];
-        // Physical range guard — values outside are nodata sentinels
-        if (v == null || !isFinite(v) || v < -100 || v > 150) {
-          imgData.data[i * 4 + 3] = 0;   // transparent
-          continue;
-        }
-        const t = Math.max(0, Math.min(1, (v - TEMP_MIN) / (TEMP_MAX - TEMP_MIN)));
-        let r, g, b;
-        if      (t < 0.25) { r = 0;   g = Math.round(t * 4 * 255);                    b = 255; }
-        else if (t < 0.50) { r = 0;   g = 255; b = Math.round((1 - (t - 0.25) * 4) * 255); }
-        else if (t < 0.75) { r = Math.round((t - 0.50) * 4 * 255); g = 255;           b = 0;   }
-        else               { r = 255; g = Math.round((1 - (t - 0.75) * 4) * 255);     b = 0;   }
-        imgData.data[i * 4 + 0] = r;
-        imgData.data[i * 4 + 1] = g;
-        imgData.data[i * 4 + 2] = b;
-        imgData.data[i * 4 + 3] = 200;   // ~78% opacity
-      }
-      ctx.putImageData(imgData, 0, 0);
-      // Store band + dimensions so click-identify can look up pixel values later
-      cogImageCache[id] = { dataUrl: canvas.toDataURL("image/png"), bbox, band, w, h };
+      // Store band + dimensions so click-identify and range re-paints can reuse them
+      cogImageCache[id] = { bbox, band, w, h };
     } catch (err) {
       let msg = err.message;
       if (msg.includes("Predictor 2") || msg.includes("64 bits")) {
@@ -538,7 +586,8 @@ async function showCogLayer(id) {
   }
 
   // Add image source — use real bounds read from the GeoTIFF geotransform
-  const { dataUrl, bbox } = cogImageCache[id];
+  const { bbox, band, w, h } = cogImageCache[id];
+  const dataUrl = renderCogCanvas(band, w, h);
   const [west, south, east, north] = bbox;
   map.addSource(`cog-src-${id}`, {
     type: "image",
@@ -561,6 +610,9 @@ async function showCogLayer(id) {
   cogOpacityEl.value          = CONFIG.cogDefaultOpacity;
   cogOpacityValEl.textContent = `${CONFIG.cogDefaultOpacity}%`;
   cogOpacityRow.classList.remove("hidden");
+
+  // Show value-range controls — inputs keep whatever range the user last set
+  cogRangeRow.classList.remove("hidden");
 
   const season = def.season.charAt(0).toUpperCase() + def.season.slice(1);
   setStatus(`${season} ${def.label} LST  |  scale: ${TEMP_MIN}°C (blue) → ${TEMP_MAX}°C (red)`);

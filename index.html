@@ -104,6 +104,16 @@
         </div>
       </div>
 
+      <!-- Symbology value range — shown only when a COG layer is active -->
+      <div id="cog-range-row" class="hidden">
+        <div class="section-label" style="margin-top:8px">Value Range (°C)</div>
+        <div class="range-row">
+          <label>Min <input type="number" id="cogRangeMin" step="1" /></label>
+          <label>Max <input type="number" id="cogRangeMax" step="1" /></label>
+          <button id="btnRangeReset" title="Reset to default range">Reset</button>
+        </div>
+      </div>
+
       <!-- Temperature legend -->
       <div class="legend">
         <div class="legend-title" id="lblLegendTitle">LST (°C)</div>

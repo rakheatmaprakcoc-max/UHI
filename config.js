@@ -40,7 +40,10 @@ const CONFIG = {
   },
 
   // ── Temperature colour scale ──────────────────────────────
-  // Applied to all COG rasters.  blue (tempMin) → cyan → green → yellow → red (tempMax)
+  // Default range applied to all COG rasters on load; the user can narrow/widen
+  // it live via the panel's Value Range inputs (e.g. 25–50 for summer). These
+  // two values are also what the panel's "Reset" button restores.
+  // blue (tempMin) → cyan → green → yellow → red (tempMax)
   tempMin: 0,   // °C — mapped to deep blue
   tempMax:  60,   // °C — mapped to deep red
 
@@ -114,8 +117,6 @@ const CONFIG = {
     cogSeasonSummer: "Summer",
     cogSeasonWinter: "Winter",
     legendTitle:     "LST (°C)",
-    // Tick labels rendered under the colour bar — update if you change tempMin / tempMax
-    legendTicks:     [ "0", "10", "15", "40", "60"],
     footerNote:      "COGs served via IIS. Buildings visible at zoom 15+.",
   },
 
