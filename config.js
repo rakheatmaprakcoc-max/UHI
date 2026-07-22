@@ -152,22 +152,35 @@ const CONFIG = {
     url:     "./Data/rak_roads.geojson",
     minzoom: 13,
 
-    // Field holding the road class, used to vary line width.
-    // OSM-derived exports use "highway" (motorway, primary, residential, ...).
-    classField: "highway",
+    // Field holding the road class, used to vary line width. rak_roads.geojson
+    // is an Overture Maps transportation export, which uses "class" (track,
+    // residential, primary, ...) rather than OSM's "highway".
+    classField: "class",
     widthStops: [
-      ["motorway",    3.5],
-      ["trunk",       3],
-      ["primary",     2.5],
-      ["secondary",   2],
-      ["tertiary",    1.5],
-      ["residential", 1],
-      ["service",     0.6],
+      ["motorway",      3.5],
+      ["trunk",         3],
+      ["primary",       2.5],
+      ["secondary",     2],
+      ["tertiary",      1.5],
+      ["residential",   1],
+      ["unclassified",  1],
+      ["living_street", 1],
+      ["service",       0.6],
+      ["track",         0.6],
+      ["pedestrian",    0.6],
+      ["footway",       0.4],
+      ["cycleway",      0.4],
+      ["path",          0.4],
+      ["steps",         0.4],
     ],
-    defaultWidth: 1,   // px, for any class not listed above
+    defaultWidth: 0.6,   // px, for any class not listed above (e.g. "unknown")
     lineColor:    "#ffffff",
 
     // Field holding the road's display name, shown in the click popup.
-    nameField: "name",
+    // In this export, ogr2ogr flattened Overture's "names" struct into a
+    // debug string like "common: , primary: Some Road, rules: " rather than
+    // real JSON — extractRoadName() in app.js parses that out. Most features
+    // have no name at all (tracks/service roads).
+    nameField: "names",
   },
 };

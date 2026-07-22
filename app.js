@@ -518,6 +518,19 @@ async function onBuildingsToggle() {
   }
 }
 
+// rak_roads.geojson is an Overture Maps export where the "names" struct field
+// got flattened by ogr2ogr into a debug-style string instead of real JSON,
+// e.g. "common: , primary: Petrol Station Access, rules: ". Pull the primary
+// name out of that (or use it directly if a future export gives a real object).
+function extractRoadName(properties) {
+  const raw = properties && properties[CONFIG.roads.nameField];
+  if (raw == null) return null;
+  if (typeof raw === "object") return raw.primary || null;
+  const match = /primary:\s*(.*?)(?:,\s*rules:|$)/.exec(raw);
+  const name = match && match[1].trim();
+  return name || null;
+}
+
 // ── Roads GeoJSON ───────────────────────────────────────────────
 const roadsLoaderRefs = makeLoaderRefs("roads");
 
@@ -566,7 +579,7 @@ async function onRoadsToggle() {
         .setLngLat(e.lngLat)
         .setHTML(
           `<b>Road</b><br>` +
-          `${p[CONFIG.roads.nameField] || "Unnamed"}<br>` +
+          `${extractRoadName(p) || "Unnamed"}<br>` +
           `Class: ${p[CONFIG.roads.classField] || "n/a"}`
         )
         .addTo(map);
