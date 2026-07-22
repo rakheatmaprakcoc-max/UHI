@@ -174,7 +174,7 @@ const CONFIG = {
       ["steps",         0.4],
     ],
     defaultWidth: 0.6,   // px, for any class not listed above (e.g. "unknown")
-    lineColor:    "#ffffff",
+    lineColor:    "#ffaa00",   // amber — reads clearly over both the Streets and Satellite basemaps
 
     // Field holding the road's display name, shown in the click popup.
     // In this export, ogr2ogr flattened Overture's "names" struct into a
