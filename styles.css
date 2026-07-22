@@ -266,6 +266,11 @@ html, body {
   flex-wrap: wrap;
 }
 
+.basemap-switcher.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
 .basemap-btn {
   flex: 1;
   padding: 4px 6px;

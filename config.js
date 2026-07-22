@@ -68,6 +68,9 @@ const CONFIG = {
   // ── Basemap options ───────────────────────────────────────
   // First entry is active on load.  All are free with no API key.
   // Note: ESRI tiles use {z}/{y}/{x} order (y before x) — different from OSM.
+  // basemapBackground shows through wherever the basemap is hidden (Show
+  // Basemap unchecked) or tiles haven't loaded yet.
+  basemapBackground: "#e6e6e6",
   basemaps: [
     {
       id:          "osm",
@@ -110,6 +113,7 @@ const CONFIG = {
     panelTitle:      "RAK LST & 3D Buildings",
     layersSection:   "Layers",
     basemapSection:  "Basemap",
+    basemapToggle:   "Show Basemap",
     terrainLayer:    "DEM Terrain",
     wfsLayer:        "WFS GBA LoD1 Buildings",
     buildingsLayer:  "Buildings Temperature (2025)",

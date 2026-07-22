@@ -73,6 +73,7 @@ const chkTerrain     = document.getElementById("chkTerrain");
 document.title                                              = CONFIG.labels.panelTitle;
 document.getElementById("lblPanelTitle").textContent        = CONFIG.labels.panelTitle;
 document.getElementById("lblBasemapSection").textContent    = CONFIG.labels.basemapSection;
+document.getElementById("lblBasemapToggle").textContent      = CONFIG.labels.basemapToggle;
 document.getElementById("lblLayersSection").textContent     = CONFIG.labels.layersSection;
 document.getElementById("lblTerrainLayer").textContent      = CONFIG.labels.terrainLayer;
 document.getElementById("lblWfsLayer").textContent          = CONFIG.labels.wfsLayer;
@@ -122,6 +123,7 @@ btnRangeReset.addEventListener("click", () => {
 
 // ── Basemap switcher buttons (built from config) ──────────────
 const basemapSwitcher = document.getElementById("basemap-switcher");
+const chkBasemap      = document.getElementById("chkBasemap");
 CONFIG.basemaps.forEach((bm, i) => {
   const btn = document.createElement("button");
   btn.className  = "basemap-btn" + (i === 0 ? " active" : "");
@@ -138,6 +140,11 @@ function switchBasemap(bm) {
   );
 }
 
+chkBasemap.addEventListener("change", () => {
+  map.setLayoutProperty("osm", "visibility", chkBasemap.checked ? "visible" : "none");
+  basemapSwitcher.classList.toggle("disabled", !chkBasemap.checked);
+});
+
 // ── Map ───────────────────────────────────────────────────────
 const map = new maplibregl.Map({
   container: "map",
@@ -151,7 +158,10 @@ const map = new maplibregl.Map({
         attribution: CONFIG.basemaps[0].attribution,
       }
     },
-    layers: [{ id: "osm", type: "raster", source: "osm" }]
+    layers: [
+      { id: "background", type: "background", paint: { "background-color": CONFIG.basemapBackground } },
+      { id: "osm", type: "raster", source: "osm" },
+    ]
   },
   center:  CONFIG.map.center,
   zoom:    CONFIG.map.zoom,
