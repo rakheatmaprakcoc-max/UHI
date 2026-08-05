@@ -232,6 +232,12 @@ map.on("load", () => {
     }
   });
 
+  // ── Cursor lat/lng readout ───────────────────────────────────
+  const mouseCoordsEl = document.getElementById("mouse-coords");
+  map.on("mousemove", (e) => {
+    mouseCoordsEl.textContent = `${e.lngLat.lat.toFixed(5)}, ${e.lngLat.lng.toFixed(5)}`;
+  });
+
   // ── COG hover identify ──────────────────────────────────────
   // Raster layers are flat image textures — MapLibre never fires a clean
   // "click" on them (any slight drag counts as a pan instead).
