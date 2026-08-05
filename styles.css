@@ -6,9 +6,23 @@ html, body {
   font-family: Arial, sans-serif;
 }
 
-#map {
+#map-container {
   width: 100%;
   height: 100%;
+  display: flex;
+}
+
+.map-pane {
+  height: 100%;
+  flex: 1 1 50%;
+  min-width: 0;
+}
+
+#map-divider {
+  width: 3px;
+  height: 100%;
+  background: #333;
+  flex: 0 0 auto;
 }
 
 /* ── Panel shell ─────────────────────────────── */

@@ -8,7 +8,11 @@
   <link href="./styles.css" rel="stylesheet" />
 </head>
 <body>
-  <div id="map"></div>
+  <div id="map-container">
+    <div id="map" class="map-pane"></div>
+    <div id="map-divider" class="hidden"></div>
+    <div id="map-right" class="map-pane hidden"></div>
+  </div>
   <!-- floating temperature chip that follows the cursor over the active COG -->
   <div id="raster-probe"></div>
 
@@ -144,6 +148,28 @@
           <span>15</span>
           <span>40</span>
           <span>60</span>
+        </div>
+      </div>
+
+      <!-- Split-view COG comparison -->
+      <div class="section-label" id="lblCompareSection" style="margin-top:10px">Compare</div>
+      <div class="layer-row">
+        <label class="layer-toggle">
+          <input type="checkbox" id="chkSplit" />
+          <span id="lblSplitToggle">Split View</span>
+        </label>
+      </div>
+      <div id="split-controls" class="hidden">
+        <div class="row">
+          <label>
+            <input id="chkLinkMaps" type="checkbox" checked />
+            Link movement
+          </label>
+        </div>
+        <div class="row">
+          <label>
+            Right pane: <select id="rightCogSelect"></select>
+          </label>
         </div>
       </div>
 

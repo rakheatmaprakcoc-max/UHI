@@ -46,6 +46,13 @@ let activeCogId       = null;
 let buildingsAdded    = false;
 let roadsAdded        = false;
 let wfsEnabled        = false;
+let currentBasemap    = CONFIG.basemaps[0];
+
+// ── Split-view (second map, right pane) state ───────────────────
+let mapRight              = null;
+let syncingMaps           = false;
+const rightCogImageCache  = {};   // same shape as cogImageCache, independent fetch/cache
+const rightCogState       = { activeId: null };
 
 const emptyFC = { type: "FeatureCollection", features: [] };
 
@@ -68,6 +75,12 @@ const btnRangeReset  = document.getElementById("btnRangeReset");
 const btnCollapse    = document.getElementById("btnCollapse");
 const panelEl        = document.getElementById("panel");
 const chkTerrain     = document.getElementById("chkTerrain");
+const chkSplit       = document.getElementById("chkSplit");
+const splitControlsEl= document.getElementById("split-controls");
+const chkLinkMaps    = document.getElementById("chkLinkMaps");
+const rightCogSelectEl = document.getElementById("rightCogSelect");
+const mapRightEl     = document.getElementById("map-right");
+const mapDividerEl   = document.getElementById("map-divider");
 
 // ── Apply config labels to the panel UI ──────────────────────
 document.title                                              = CONFIG.labels.panelTitle;
@@ -83,6 +96,8 @@ document.getElementById("lblCogSection").textContent        = CONFIG.labels.cogS
 document.getElementById("lblSeasonSummer").textContent      = CONFIG.labels.cogSeasonSummer;
 document.getElementById("lblSeasonWinter").textContent      = CONFIG.labels.cogSeasonWinter;
 document.getElementById("lblLegendTitle").textContent       = CONFIG.labels.legendTitle;
+document.getElementById("lblCompareSection").textContent    = CONFIG.labels.compareSection;
+document.getElementById("lblSplitToggle").textContent        = CONFIG.labels.splitToggle;
 document.getElementById("lblFooterNote").textContent        = CONFIG.labels.footerNote;
 
 // ── Symbology value range (legend ticks recomputed from TEMP_MIN/TEMP_MAX) ──
@@ -111,6 +126,13 @@ function applyRangeChange() {
     map.getSource(`cog-src-${activeCogId}`).updateImage({ url: dataUrl });
     setStatus(`Value range updated: ${TEMP_MIN}°C (blue) → ${TEMP_MAX}°C (red)`);
   }
+
+  // Right pane shares the same color scale — repaint its active COG too
+  if (rightCogState.activeId && rightCogImageCache[rightCogState.activeId]) {
+    const { band, w, h } = rightCogImageCache[rightCogState.activeId];
+    const dataUrl = renderCogCanvas(band, w, h);
+    mapRight.getSource(`cog-src-${rightCogState.activeId}`).updateImage({ url: dataUrl });
+  }
 }
 
 cogRangeMinEl.addEventListener("change", applyRangeChange);
@@ -134,15 +156,31 @@ CONFIG.basemaps.forEach((bm, i) => {
 });
 
 function switchBasemap(bm) {
+  currentBasemap = bm;
   map.getSource("osm").setTiles(bm.tiles);
+  if (mapRight) mapRight.getSource("osm").setTiles(bm.tiles);
   document.querySelectorAll(".basemap-btn").forEach(b =>
     b.classList.toggle("active", b.dataset.id === bm.id)
   );
 }
 
 chkBasemap.addEventListener("change", () => {
-  map.setLayoutProperty("osm", "visibility", chkBasemap.checked ? "visible" : "none");
+  const vis = chkBasemap.checked ? "visible" : "none";
+  map.setLayoutProperty("osm", "visibility", vis);
+  if (mapRight) mapRight.setLayoutProperty("osm", "visibility", vis);
   basemapSwitcher.classList.toggle("disabled", !chkBasemap.checked);
+});
+
+// ── Right-pane COG dropdown (built from config) ─────────────────
+const rightNoneOpt = document.createElement("option");
+rightNoneOpt.value = "";
+rightNoneOpt.textContent = "None";
+rightCogSelectEl.appendChild(rightNoneOpt);
+COG_LAYERS.forEach(def => {
+  const opt = document.createElement("option");
+  opt.value = def.id;
+  opt.textContent = `${def.season.charAt(0).toUpperCase() + def.season.slice(1)} ${def.label}`;
+  rightCogSelectEl.appendChild(opt);
 });
 
 // ── Map ───────────────────────────────────────────────────────
@@ -211,6 +249,12 @@ map.on("load", () => {
   chkBuildings.addEventListener("change", onBuildingsToggle);
   chkRoads.addEventListener("change", onRoadsToggle);
   chkTerrain.addEventListener("change", onTerrainToggle);
+  chkSplit.addEventListener("change", onSplitToggle);
+  chkLinkMaps.addEventListener("change", () => {
+    if (chkLinkMaps.checked && mapRight) syncMaps(map, mapRight);
+  });
+  rightCogSelectEl.addEventListener("change", () => showRightCogLayer(rightCogSelectEl.value));
+  map.on("move", () => { if (mapRight) syncMaps(map, mapRight); });
 
   document.querySelectorAll('input[name="cog"]').forEach(radio => {
     radio.addEventListener("change", () => showCogLayer(radio.value));
@@ -734,6 +778,152 @@ async function showCogLayer(id) {
 
   const season = def.season.charAt(0).toUpperCase() + def.season.slice(1);
   setStatus(`${season} ${def.label} LST  |  scale: ${TEMP_MIN}°C (blue) → ${TEMP_MAX}°C (red)`);
+}
+
+// ── Split view: second map for side-by-side COG comparison ─────
+// The right pane shares the left map's basemap/terrain/buildings/roads
+// (those aren't "yearly" data) and its color scale/opacity — only the COG
+// year/season is picked independently, since that's the actual comparison.
+
+function syncMaps(source, target) {
+  if (!chkLinkMaps.checked || syncingMaps) return;
+  syncingMaps = true;
+  target.jumpTo({
+    center:  source.getCenter(),
+    zoom:    source.getZoom(),
+    pitch:   source.getPitch(),
+    bearing: source.getBearing(),
+  });
+  syncingMaps = false;
+}
+
+function createRightMap() {
+  mapRight = new maplibregl.Map({
+    container: "map-right",
+    style: {
+      version: 8,
+      sources: {
+        osm: {
+          type:        "raster",
+          tiles:       currentBasemap.tiles,
+          tileSize:    256,
+          attribution: currentBasemap.attribution,
+        }
+      },
+      layers: [
+        { id: "background", type: "background", paint: { "background-color": CONFIG.basemapBackground } },
+        { id: "osm", type: "raster", source: "osm" },
+      ]
+    },
+    center:  map.getCenter(),
+    zoom:    map.getZoom(),
+    pitch:   map.getPitch(),
+    bearing: map.getBearing(),
+    maxBounds: [
+      [RAK_BOUNDS.west - 0.05, RAK_BOUNDS.south - 0.05],
+      [RAK_BOUNDS.east + 0.05, RAK_BOUNDS.north + 0.05]
+    ]
+  });
+
+  mapRight.addControl(new maplibregl.NavigationControl(), "top-right");
+
+  mapRight.on("load", () => {
+    mapRight.addSource("rak-boundary", { type: "geojson", data: rakPolygon });
+    mapRight.addLayer({
+      id: "rak-boundary-fill", type: "fill", source: "rak-boundary",
+      paint: { "fill-color": "#0080ff", "fill-opacity": 0.05 }
+    });
+    mapRight.addLayer({
+      id: "rak-boundary-line", type: "line", source: "rak-boundary",
+      paint: { "line-color": "#0080ff", "line-width": 2 }
+    });
+
+    mapRight.setLayoutProperty("osm", "visibility", chkBasemap.checked ? "visible" : "none");
+    mapRight.on("move", () => syncMaps(mapRight, map));
+
+    if (rightCogSelectEl.value) showRightCogLayer(rightCogSelectEl.value);
+  });
+}
+
+function onSplitToggle() {
+  const on = chkSplit.checked;
+  splitControlsEl.classList.toggle("hidden", !on);
+  mapRightEl.classList.toggle("hidden", !on);
+  mapDividerEl.classList.toggle("hidden", !on);
+
+  if (on) {
+    if (!mapRight) {
+      createRightMap();
+    } else {
+      mapRight.resize();
+      syncMaps(map, mapRight);
+    }
+  }
+  // Left map's pane width just changed either way — reflow after layout settles
+  requestAnimationFrame(() => map.resize());
+}
+
+async function showRightCogLayer(id) {
+  if (!mapRight) return;
+  if (!mapRight.isStyleLoaded()) {
+    // Right map just got created and hasn't finished its own "load" yet — retry then.
+    mapRight.once("load", () => showRightCogLayer(id));
+    return;
+  }
+
+  if (rightCogState.activeId) {
+    if (mapRight.getLayer(rightCogState.activeId))                 mapRight.removeLayer(rightCogState.activeId);
+    if (mapRight.getSource(`cog-src-${rightCogState.activeId}`))   mapRight.removeSource(`cog-src-${rightCogState.activeId}`);
+    rightCogState.activeId = null;
+  }
+  if (!id) return;
+
+  const def = COG_LAYERS.find(l => l.id === id);
+  if (!def) return;
+
+  if (!rightCogImageCache[id]) {
+    setStatus(`Loading ${def.season} ${def.label} COG (right pane)…`);
+    try {
+      const tiff      = await GeoTIFF.fromUrl(def.url);
+      const imgCount  = await tiff.getImageCount();
+      const mainImage = await tiff.getImage(0);
+      const bbox      = mainImage.getBoundingBox();
+
+      let target = mainImage;
+      for (let i = imgCount - 1; i >= 0; i--) {
+        const img = await tiff.getImage(i);
+        if (img.getWidth() >= 128) { target = img; break; }
+      }
+
+      const w = target.getWidth();
+      const h = target.getHeight();
+      const [band] = await target.readRasters({ interleave: false });
+
+      rightCogImageCache[id] = { bbox, band, w, h };
+    } catch (err) {
+      setStatus(`Right pane COG error: ${err.message}`);
+      rightCogSelectEl.value = "";
+      return;
+    }
+  }
+
+  const { bbox, band, w, h } = rightCogImageCache[id];
+  const dataUrl = renderCogCanvas(band, w, h);
+  const [west, south, east, north] = bbox;
+  mapRight.addSource(`cog-src-${id}`, {
+    type: "image",
+    url: dataUrl,
+    coordinates: [
+      [west, north], [east, north], [east, south], [west, south],
+    ]
+  });
+  mapRight.addLayer(
+    { id, type: "raster", source: `cog-src-${id}`, paint: { "raster-opacity": CONFIG.cogDefaultOpacity / 100 } },
+    "rak-boundary-fill"
+  );
+
+  rightCogState.activeId = id;
+  setStatus(`Right pane: ${def.season} ${def.label} LST.`);
 }
 
 // ── WFS loading helpers ───────────────────────────────────────

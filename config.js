@@ -122,6 +122,8 @@ const CONFIG = {
     cogSeasonSummer: "Summer",
     cogSeasonWinter: "Winter",
     legendTitle:     "LST (°C)",
+    compareSection:  "Compare",
+    splitToggle:     "Split View",
     footerNote:      "COGs served via IIS. Buildings visible at zoom 15+.",
   },
 
