@@ -226,14 +226,14 @@ map.on("load", () => {
     attribution: CONFIG.terrain.attribution,
   });
 
-  map.addLayer({
-    id:   "sky",
-    type: "sky",
-    paint: {
-      "sky-type":                    "atmosphere",
-      "sky-atmosphere-sun":          [0.0, 90.0],
-      "sky-atmosphere-sun-intensity": 15,
-    },
+  // Sky is a top-level style property in this MapLibre version (set via
+  // setSky), not a "type: sky" layer added through addLayer — that older
+  // Mapbox-style API throws a style-validation error on this version.
+  map.setSky({
+    "sky-color":         "#88C6FC",
+    "horizon-color":     "#ffffff",
+    "sky-horizon-blend": 0.6,
+    "atmosphere-blend":  0.8,
   });
 
   addBoundary();
