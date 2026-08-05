@@ -282,82 +282,8 @@ map.on("load", () => {
     mouseCoordsEl.textContent = `${e.lngLat.lat.toFixed(5)}, ${e.lngLat.lng.toFixed(5)}`;
   });
 
-  // ── COG hover identify ──────────────────────────────────────
-  // Raster layers are flat image textures — MapLibre never fires a clean
-  // "click" on them (any slight drag counts as a pan instead).
-  // Solution: probe the cached pixel array on every mousemove and show the
-  // temperature in a floating chip that follows the cursor.
-  const probe = document.getElementById("raster-probe");
-
-  map.on("mousemove", (e) => {
-    if (!activeCogId) {
-      probe.style.display = "none";
-      map.getCanvas().style.cursor = "";
-      return;
-    }
-
-    const cache = cogImageCache[activeCogId];
-    if (!cache) { probe.style.display = "none"; return; }
-
-    const { bbox, band, w, h } = cache;
-    const [west, south, east, north] = bbox;
-    const { lng, lat } = e.lngLat;
-
-    if (lng < west || lng > east || lat < south || lat > north) {
-      probe.style.display = "none";
-      map.getCanvas().style.cursor = "";
-      return;
-    }
-
-    map.getCanvas().style.cursor = "crosshair";
-
-    const col = Math.floor((lng - west)  / (east  - west)  * w);
-    const row = Math.floor((north - lat) / (north - south) * h);
-    const val = band[Math.max(0, Math.min(row * w + col, band.length - 1))];
-
-    const text = (val == null || !isFinite(val) || val < -100 || val > 150)
-      ? "No data"
-      : `${val.toFixed(2)} °C`;
-
-    probe.textContent = text;
-
-    // Position chip 14 px right and above the cursor
-    const pt = e.point;
-    probe.style.left = (pt.x + 14) + "px";
-    probe.style.top  = (pt.y - 28) + "px";
-    probe.style.display = "block";
-  });
-
-  map.on("mouseleave", () => { probe.style.display = "none"; });
-
-  // Click still pins a popup (works when the user manages a clean click)
-  map.on("click", (e) => {
-    if (!activeCogId) return;
-    const cache = cogImageCache[activeCogId];
-    if (!cache) return;
-
-    const { bbox, band, w, h } = cache;
-    const [west, south, east, north] = bbox;
-    const { lng, lat } = e.lngLat;
-    if (lng < west || lng > east || lat < south || lat > north) return;
-
-    const col = Math.floor((lng - west)  / (east  - west)  * w);
-    const row = Math.floor((north - lat) / (north - south) * h);
-    const val = band[Math.max(0, Math.min(row * w + col, band.length - 1))];
-
-    const def   = COG_LAYERS.find(l => l.id === activeCogId);
-    const label = def
-      ? `${def.season.charAt(0).toUpperCase() + def.season.slice(1)} ${def.label}`
-      : activeCogId;
-    const text  = (val == null || !isFinite(val) || val < -100 || val > 150)
-      ? "No data"
-      : `${val.toFixed(2)} °C`;
-
-    new maplibregl.Popup()
-      .setLngLat(e.lngLat)
-      .setHTML(`<b>LST — ${label}</b><br>${text}`)
-      .addTo(map);
-  });
+  // ── COG hover identify (left pane) ───────────────────────────
+  wireCogInspect(map, () => activeCogId, cogImageCache, document.getElementById("raster-probe"));
 
   setStatus("Map ready.");
 });
@@ -652,6 +578,92 @@ async function onRoadsToggle() {
   }
 }
 
+// Looks up the raw band value under a lng/lat, or null if outside the
+// raster's bounds. Shared by both panes' hover-identify and click-popup.
+function sampleCogValue(cache, lng, lat) {
+  const { bbox, band, w, h } = cache;
+  const [west, south, east, north] = bbox;
+  if (lng < west || lng > east || lat < south || lat > north) return null;
+  const col = Math.floor((lng - west)  / (east  - west)  * w);
+  const row = Math.floor((north - lat) / (north - south) * h);
+  return band[Math.max(0, Math.min(row * w + col, band.length - 1))];
+}
+
+function formatTemp(val) {
+  return (val == null || !isFinite(val) || val < -100 || val > 150)
+    ? "No data"
+    : `${val.toFixed(2)} °C`;
+}
+
+// All wired-up probe chips — a pane's mousemove hides every other pane's
+// probe defensively, since crossing directly from one map's canvas into an
+// adjacent one doesn't always reliably fire "mouseleave" on the one left.
+const allProbeEls = [];
+
+// Wires hover-identify (floating chip) + click-popup for one map/cache pair.
+// getActiveId is a function (not a value) so it re-reads whichever pane's
+// "currently selected COG" variable is live at the time of each event.
+function wireCogInspect(targetMap, getActiveId, cache, probeEl) {
+  allProbeEls.push(probeEl);
+
+  // Raster layers are flat image textures — MapLibre never fires a clean
+  // "click" on them (any slight drag counts as a pan instead).
+  // Solution: probe the cached pixel array on every mousemove and show the
+  // temperature in a floating chip that follows the cursor.
+  targetMap.on("mousemove", (e) => {
+    // e.point is relative to this map's own container — a stray mousemove
+    // reported for a point outside it (observed happening across the split
+    // view's two adjacent canvases) isn't a real hover on this pane.
+    const c = targetMap.getContainer();
+    if (e.point.x < 0 || e.point.y < 0 || e.point.x > c.clientWidth || e.point.y > c.clientHeight) {
+      probeEl.style.display = "none";
+      return;
+    }
+
+    allProbeEls.forEach(el => { if (el !== probeEl) el.style.display = "none"; });
+
+    const id = getActiveId();
+    const val = id && cache[id] ? sampleCogValue(cache[id], e.lngLat.lng, e.lngLat.lat) : null;
+
+    if (val === null) {
+      probeEl.style.display = "none";
+      targetMap.getCanvas().style.cursor = "";
+      return;
+    }
+
+    targetMap.getCanvas().style.cursor = "crosshair";
+    probeEl.textContent = formatTemp(val);
+
+    // Position chip 14px right and above the cursor, in page coordinates —
+    // e.point is relative to this map's own container, which is offset from
+    // the page when it's the split view's right pane.
+    const containerRect = targetMap.getContainer().getBoundingClientRect();
+    probeEl.style.left = (containerRect.left + e.point.x + 14) + "px";
+    probeEl.style.top  = (containerRect.top  + e.point.y - 28) + "px";
+    probeEl.style.display = "block";
+  });
+
+  targetMap.on("mouseleave", () => { probeEl.style.display = "none"; });
+
+  // Click still pins a popup (works when the user manages a clean click)
+  targetMap.on("click", (e) => {
+    const id = getActiveId();
+    if (!id || !cache[id]) return;
+    const val = sampleCogValue(cache[id], e.lngLat.lng, e.lngLat.lat);
+    if (val === null) return;
+
+    const def   = COG_LAYERS.find(l => l.id === id);
+    const label = def
+      ? `${def.season.charAt(0).toUpperCase() + def.season.slice(1)} ${def.label}`
+      : id;
+
+    new maplibregl.Popup()
+      .setLngLat(e.lngLat)
+      .setHTML(`<b>LST — ${label}</b><br>${formatTemp(val)}`)
+      .addTo(targetMap);
+  });
+}
+
 // ── COG temperature raster (via geotiff.js + MapLibre image source) ──────────
 // Reads the COG overview level to get a fast, medium-res snapshot of the whole
 // RAK extent, renders each pixel with the blue→red temperature ramp, and adds
@@ -840,6 +852,8 @@ function createRightMap() {
 
     mapRight.setLayoutProperty("osm", "visibility", chkBasemap.checked ? "visible" : "none");
     mapRight.on("move", () => syncMaps(mapRight, map));
+
+    wireCogInspect(mapRight, () => rightCogState.activeId, rightCogImageCache, document.getElementById("raster-probe-right"));
 
     if (rightCogSelectEl.value) showRightCogLayer(rightCogSelectEl.value);
   });

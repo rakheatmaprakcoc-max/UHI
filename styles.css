@@ -446,7 +446,8 @@ button:hover {
 }
 
 /* ── Floating temperature probe chip ─────────── */
-#raster-probe {
+#raster-probe,
+#raster-probe-right {
   display: none;
   position: absolute;
   z-index: 20;
