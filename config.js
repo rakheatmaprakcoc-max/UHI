@@ -182,14 +182,15 @@ const CONFIG = {
 
   // ── Land Use / Land Cover raster (classified, not a temperature COG) ──
   lulc: {
-    url:          "./Data/RAK_LULC.tif",
+    url:          "./Data/RAK_LULC_cog.tif",
     nodataValue:  0,
     opacity:      0.75,
 
-    // RAK_LULC.tif is projected in UTM Zone 40N, not WGS84 like the LST
+    // RAK_LULC_cog.tif is projected in UTM Zone 40N, not WGS84 like the LST
     // COGs, so geotiff.js's own getBoundingBox() can't be used directly for
     // map placement. These 4 corners were reprojected once (NW, NE, SE, SW)
-    // and are fixed for this specific raster file — re-derive them (e.g. via
+    // and are fixed for this specific raster's extent (confirmed unchanged
+    // from the original RAK_LULC.tif) — re-derive them (e.g. via
     // rasterio.warp.transform) if the file is ever re-exported with a
     // different extent.
     coordinates: [
@@ -199,23 +200,24 @@ const CONFIG = {
       [55.7395250, 24.8367560],   // SW
     ],
 
-    // value → class name/color, from RAK_LULC.tif.vat.dbf + the project's
-    // LULC symbology. Colors are close visual matches, not pixel-sampled —
-    // tweak freely.
+    // value → class name/color. RAK_LULC_cog.tif.vat.dbf only carries Value
+    // + Count now (no Class field), so names come from the project's LULC
+    // symbology legend; colors are close visual matches to that legend, not
+    // pixel-sampled — tweak freely.
     classes: [
-      { value: 1,  name: "Desert",                      color: "#FBF8E8" },
-      { value: 2,  name: "Barren Land",                  color: "#D8C9A3" },
-      { value: 3,  name: "Agriculture",                  color: "#5FA352" },
-      { value: 4,  name: "Developed, Low Intensity",     color: "#E59C8F" },
-      { value: 5,  name: "Developed, Medium Intensity",  color: "#E2231A" },
-      { value: 6,  name: "Developed, Open Space",        color: "#F3CBA0" },
-      { value: 7,  name: "Open Water",                   color: "#3E76B0" },
-      { value: 8,  name: "Developed, High Intensity",    color: "#9E0B0F" },
-      { value: 9,  name: "Wetlands",                     color: "#A8A8A0" },
-      { value: 10, name: "Green Spaces",                 color: "#4F9D46" },
-      { value: 11, name: "Mangroves",                    color: "#1F6D4C" },
-      { value: 12, name: "Golf Course",                  color: "#8FD3E8" },
-      { value: 13, name: "Sea Water",                    color: "#C7E6F5" },
+      { value: 1,  name: "Desert",                      color: "#F5C99B" },
+      { value: 2,  name: "Barren Land",                  color: "#F0E4C0" },
+      { value: 3,  name: "Agriculture",                  color: "#2E6B1F" },
+      { value: 4,  name: "Developed, Low Intensity",     color: "#E8998D" },
+      { value: 5,  name: "Developed, Medium Intensity",  color: "#E31E24" },
+      { value: 6,  name: "Developed, Open Space",        color: "#F5A031" },
+      { value: 7,  name: "Open Water",                   color: "#2D7DD2" },
+      { value: 8,  name: "Developed, High Intensity",    color: "#8B1A1A" },
+      { value: 9,  name: "Wetlands",                     color: "#C4A876" },
+      { value: 10, name: "Green Spaces",                 color: "#A8D08A" },
+      { value: 11, name: "Mangroves",                    color: "#4CA64C" },
+      { value: 12, name: "Golf Course",                  color: "#8FC1E3" },
+      { value: 13, name: "Sea Water",                    color: "#D6EAF5" },
     ],
   },
 };
