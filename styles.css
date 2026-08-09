@@ -204,6 +204,30 @@ html, body {
   text-align: right;
 }
 
+/* ── LULC class legend ────────────────────────── */
+.lulc-legend-swatches {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px 8px;
+  margin: 4px 0 2px;
+}
+
+.lulc-legend-swatches .swatch-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: #444;
+}
+
+.lulc-legend-swatches .swatch {
+  width: 11px;
+  height: 11px;
+  border-radius: 2px;
+  border: 1px solid rgba(0,0,0,0.2);
+  flex-shrink: 0;
+}
+
 /* ── Symbology value range inputs ────────────── */
 .range-row {
   display: flex;

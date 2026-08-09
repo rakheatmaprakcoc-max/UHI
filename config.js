@@ -23,21 +23,9 @@ const CONFIG = {
     north: 26.0714589,
   },
 
-  // areaPolygon: the actual (non-rectangular) study-area outline drawn on the map
-  areaPolygon: {
-    type: "Feature",
-    properties: { name: "RAK extraction area" },
-    geometry: {
-      type: "Polygon",
-      coordinates: [[
-        [55.700086,  26.0375280],
-        [56.1829599, 26.0714589],
-        [56.2847179, 24.8466994],
-        [55.8066362, 24.8132634],
-        [55.700086,  26.0375280],
-      ]]
-    }
-  },
+  // boundaryUrl: the actual RAK administrative boundary, fetched and drawn on
+  // the map (replaces the old hand-drawn approximate rectangle).
+  boundaryUrl: "./Data/rak_boundries.geojson",
 
   // ── Temperature colour scale ──────────────────────────────
   // Default range applied to all COG rasters on load; the user can narrow/widen
@@ -118,6 +106,8 @@ const CONFIG = {
     wfsLayer:        "WFS GBA LoD1 Buildings",
     buildingsLayer:  "Buildings Temperature (2025)",
     roadsLayer:      "Roads",
+    lulcLayer:       "Land Use / Land Cover",
+    lulcLegendTitle: "LULC Classes",
     cogSection:      "Temperature COG (LST)",
     cogSeasonSummer: "Summer",
     cogSeasonWinter: "Winter",
@@ -188,5 +178,44 @@ const CONFIG = {
     // real JSON — extractRoadName() in app.js parses that out. Most features
     // have no name at all (tracks/service roads).
     nameField: "names",
+  },
+
+  // ── Land Use / Land Cover raster (classified, not a temperature COG) ──
+  lulc: {
+    url:          "./Data/RAK_LULC.tif",
+    nodataValue:  0,
+    opacity:      0.75,
+
+    // RAK_LULC.tif is projected in UTM Zone 40N, not WGS84 like the LST
+    // COGs, so geotiff.js's own getBoundingBox() can't be used directly for
+    // map placement. These 4 corners were reprojected once (NW, NE, SE, SW)
+    // and are fixed for this specific raster file — re-derive them (e.g. via
+    // rasterio.warp.transform) if the file is ever re-exported with a
+    // different extent.
+    coordinates: [
+      [55.7266537, 26.0662962],   // NW
+      [56.2741525, 26.0700875],   // NE
+      [56.2814912, 24.8403441],   // SE
+      [55.7395250, 24.8367560],   // SW
+    ],
+
+    // value → class name/color, from RAK_LULC.tif.vat.dbf + the project's
+    // LULC symbology. Colors are close visual matches, not pixel-sampled —
+    // tweak freely.
+    classes: [
+      { value: 1,  name: "Desert",                      color: "#FBF8E8" },
+      { value: 2,  name: "Barren Land",                  color: "#D8C9A3" },
+      { value: 3,  name: "Agriculture",                  color: "#5FA352" },
+      { value: 4,  name: "Developed, Low Intensity",     color: "#E59C8F" },
+      { value: 5,  name: "Developed, Medium Intensity",  color: "#E2231A" },
+      { value: 6,  name: "Developed, Open Space",        color: "#F3CBA0" },
+      { value: 7,  name: "Open Water",                   color: "#3E76B0" },
+      { value: 8,  name: "Developed, High Intensity",    color: "#9E0B0F" },
+      { value: 9,  name: "Wetlands",                     color: "#A8A8A0" },
+      { value: 10, name: "Green Spaces",                 color: "#4F9D46" },
+      { value: 11, name: "Mangroves",                    color: "#1F6D4C" },
+      { value: 12, name: "Golf Course",                  color: "#8FD3E8" },
+      { value: 13, name: "Sea Water",                    color: "#C7E6F5" },
+    ],
   },
 };

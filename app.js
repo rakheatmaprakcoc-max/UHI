@@ -5,7 +5,6 @@
 // in config.js which is loaded before this file.  Local aliases
 // keep every reference below unchanged.
 
-const rakPolygon = CONFIG.areaPolygon;
 const RAK_BOUNDS = CONFIG.bounds;
 
 const WFS_BASE            = CONFIG.wfs.base;
@@ -61,6 +60,9 @@ const statusEl       = document.getElementById("status");
 const chkWfs         = document.getElementById("chkWfs");
 const chkBuildings   = document.getElementById("chkBuildings");
 const chkRoads       = document.getElementById("chkRoads");
+const chkLulc        = document.getElementById("chkLulc");
+const lulcLegendEl   = document.getElementById("lulc-legend");
+const lulcSwatchesEl = document.getElementById("lulc-legend-swatches");
 const autoLoadEl     = document.getElementById("autoLoad");
 const btnLoad        = document.getElementById("btnLoad");
 const btnClear       = document.getElementById("btnClear");
@@ -92,6 +94,8 @@ document.getElementById("lblTerrainLayer").textContent      = CONFIG.labels.terr
 document.getElementById("lblWfsLayer").textContent          = CONFIG.labels.wfsLayer;
 document.getElementById("lblBuildingsLayer").textContent    = CONFIG.labels.buildingsLayer;
 document.getElementById("lblRoadsLayer").textContent         = CONFIG.labels.roadsLayer;
+document.getElementById("lblLulcLayer").textContent          = CONFIG.labels.lulcLayer;
+document.getElementById("lblLulcLegendTitle").textContent    = CONFIG.labels.lulcLegendTitle;
 document.getElementById("lblCogSection").textContent        = CONFIG.labels.cogSection;
 document.getElementById("lblSeasonSummer").textContent      = CONFIG.labels.cogSeasonSummer;
 document.getElementById("lblSeasonWinter").textContent      = CONFIG.labels.cogSeasonWinter;
@@ -183,6 +187,18 @@ COG_LAYERS.forEach(def => {
   rightCogSelectEl.appendChild(opt);
 });
 
+// ── LULC legend (built from config) ──────────────────────────
+CONFIG.lulc.classes.forEach(cls => {
+  const row = document.createElement("div");
+  row.className = "swatch-row";
+  const sw = document.createElement("span");
+  sw.className = "swatch";
+  sw.style.background = cls.color;
+  row.appendChild(sw);
+  row.appendChild(document.createTextNode(cls.name));
+  lulcSwatchesEl.appendChild(row);
+});
+
 // ── Map ───────────────────────────────────────────────────────
 const map = new maplibregl.Map({
   container: "map",
@@ -215,7 +231,7 @@ map.addControl(new maplibregl.NavigationControl(), "top-right");
 map.addControl(new maplibregl.ScaleControl({ maxWidth: 120, unit: "metric" }));
 
 // ── Map load ──────────────────────────────────────────────────
-map.on("load", () => {
+map.on("load", async () => {
   // ── DEM terrain source + sky layer ─────────────────────────
   map.addSource("terrain-dem", {
     type:        "raster-dem",
@@ -236,7 +252,7 @@ map.on("load", () => {
     "atmosphere-blend":  0.8,
   });
 
-  addBoundary();
+  await addBoundary(map);
   addWfsLayers();   // hidden; source starts empty
   // Buildings GeoJSON NOT added yet — avoid auto-downloading 86 GB
 
@@ -248,6 +264,7 @@ map.on("load", () => {
   chkWfs.addEventListener("change", onWfsToggle);
   chkBuildings.addEventListener("change", onBuildingsToggle);
   chkRoads.addEventListener("change", onRoadsToggle);
+  chkLulc.addEventListener("change", onLulcToggle);
   chkTerrain.addEventListener("change", onTerrainToggle);
   chkSplit.addEventListener("change", onSplitToggle);
   chkLinkMaps.addEventListener("change", () => {
@@ -289,13 +306,37 @@ map.on("load", () => {
 });
 
 // ── RAK boundary ──────────────────────────────────────────────
-function addBoundary() {
-  map.addSource("rak-boundary", { type: "geojson", data: rakPolygon });
-  map.addLayer({
+// Fetched once and shared between the left map and the split view's right
+// pane — caching the promise (not just the resolved data) means concurrent
+// callers share one in-flight request instead of double-fetching.
+let boundaryGeojsonPromise = null;
+function getBoundaryGeojson() {
+  if (!boundaryGeojsonPromise) {
+    boundaryGeojsonPromise = fetch(CONFIG.boundaryUrl).then(res => {
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    });
+  }
+  return boundaryGeojsonPromise;
+}
+
+async function addBoundary(targetMap) {
+  let data;
+  try {
+    data = await getBoundaryGeojson();
+  } catch (err) {
+    // Other code inserts layers "before: rak-boundary-fill" — without it
+    // those inserts would throw. Log and bail so the rest of setup still runs.
+    console.error("Failed to load RAK boundary:", err);
+    setStatus(`Boundary error: ${err.message}`);
+    return;
+  }
+  targetMap.addSource("rak-boundary", { type: "geojson", data });
+  targetMap.addLayer({
     id: "rak-boundary-fill", type: "fill", source: "rak-boundary",
     paint: { "fill-color": "#0080ff", "fill-opacity": 0.05 }
   });
-  map.addLayer({
+  targetMap.addLayer({
     id: "rak-boundary-line", type: "line", source: "rak-boundary",
     paint: { "line-color": "#0080ff", "line-width": 2 }
   });
@@ -578,6 +619,110 @@ async function onRoadsToggle() {
   }
 }
 
+// ── LULC (Land Use / Land Cover) classified raster ──────────────
+// Unlike the LST COGs this is categorical data (one flat color per class
+// value, from CONFIG.lulc.classes) rather than a continuous gradient, and
+// it's projected in UTM — CONFIG.lulc.coordinates are pre-reprojected WGS84
+// corners for map placement (see the comment in config.js).
+let lulcAdded = false;
+let lulcCache = null;   // { bbox: [west,south,east,north] approx, band, w, h }
+
+function hexToRgb(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+const LULC_COLOR_BY_VALUE = new Map(CONFIG.lulc.classes.map(c => [c.value, hexToRgb(c.color)]));
+const LULC_NAME_BY_VALUE  = new Map(CONFIG.lulc.classes.map(c => [c.value, c.name]));
+
+function renderLulcCanvas(band, w, h) {
+  const canvas  = document.createElement("canvas");
+  canvas.width  = w;
+  canvas.height = h;
+  const ctx     = canvas.getContext("2d");
+  const imgData = ctx.createImageData(w, h);
+
+  for (let i = 0; i < band.length; i++) {
+    const rgb = LULC_COLOR_BY_VALUE.get(band[i]);
+    if (band[i] === CONFIG.lulc.nodataValue || !rgb) {
+      imgData.data[i * 4 + 3] = 0;   // transparent
+      continue;
+    }
+    imgData.data[i * 4 + 0] = rgb[0];
+    imgData.data[i * 4 + 1] = rgb[1];
+    imgData.data[i * 4 + 2] = rgb[2];
+    imgData.data[i * 4 + 3] = 200;
+  }
+  ctx.putImageData(imgData, 0, 0);
+  return canvas.toDataURL("image/png");
+}
+
+async function onLulcToggle() {
+  if (!chkLulc.checked) {
+    if (lulcAdded) map.setLayoutProperty("lulc-layer", "visibility", "none");
+    lulcLegendEl.classList.add("hidden");
+    return;
+  }
+
+  lulcLegendEl.classList.remove("hidden");
+
+  if (!lulcAdded) {
+    setStatus("Loading LULC raster…");
+    try {
+      const tiff  = await GeoTIFF.fromUrl(CONFIG.lulc.url);
+      const image = await tiff.getImage(0);
+      const w     = image.getWidth();
+      const h     = image.getHeight();
+      const [band] = await image.readRasters({ interleave: false });
+
+      // Axis-aligned approximation of the 4 reprojected corners, used only
+      // for click-identify's lng/lat → pixel math — the tiny UTM-derived
+      // skew (well under 1% of the extent) isn't worth a full quadrilateral
+      // inverse-transform for a "what class is roughly here" popup.
+      const lons = CONFIG.lulc.coordinates.map(c => c[0]);
+      const lats = CONFIG.lulc.coordinates.map(c => c[1]);
+      const bbox = [Math.min(...lons), Math.min(...lats), Math.max(...lons), Math.max(...lats)];
+
+      lulcCache = { bbox, band, w, h };
+    } catch (err) {
+      setStatus(`LULC error: ${err.message}`);
+      chkLulc.checked = false;
+      lulcLegendEl.classList.add("hidden");
+      return;
+    }
+
+    const dataUrl = renderLulcCanvas(lulcCache.band, lulcCache.w, lulcCache.h);
+    map.addSource("lulc-src", {
+      type: "image",
+      url: dataUrl,
+      coordinates: CONFIG.lulc.coordinates,
+    });
+    map.addLayer(
+      { id: "lulc-layer", type: "raster", source: "lulc-src", paint: { "raster-opacity": CONFIG.lulc.opacity } },
+      "rak-boundary-fill"
+    );
+
+    // Raster layers have no queryable features, so a layer-filtered click
+    // listener never fires (same reason the COG click-identify above uses a
+    // plain map-level listener) — gate manually on lulcAdded instead.
+    map.on("click", (e) => {
+      if (!lulcAdded || map.getLayoutProperty("lulc-layer", "visibility") === "none") return;
+      const val  = sampleCogValue(lulcCache, e.lngLat.lng, e.lngLat.lat);
+      if (val == null) return;
+      const name = LULC_NAME_BY_VALUE.get(val);
+      new maplibregl.Popup()
+        .setLngLat(e.lngLat)
+        .setHTML(`<b>LULC</b><br>${name || "No data"}`)
+        .addTo(map);
+    });
+
+    lulcAdded = true;
+    setStatus("LULC layer active.");
+  } else {
+    map.setLayoutProperty("lulc-layer", "visibility", "visible");
+  }
+}
+
 // Looks up the raw band value under a lng/lat, or null if outside the
 // raster's bounds. Shared by both panes' hover-identify and click-popup.
 function sampleCogValue(cache, lng, lat) {
@@ -839,16 +984,8 @@ function createRightMap() {
 
   mapRight.addControl(new maplibregl.NavigationControl(), "top-right");
 
-  mapRight.on("load", () => {
-    mapRight.addSource("rak-boundary", { type: "geojson", data: rakPolygon });
-    mapRight.addLayer({
-      id: "rak-boundary-fill", type: "fill", source: "rak-boundary",
-      paint: { "fill-color": "#0080ff", "fill-opacity": 0.05 }
-    });
-    mapRight.addLayer({
-      id: "rak-boundary-line", type: "line", source: "rak-boundary",
-      paint: { "line-color": "#0080ff", "line-width": 2 }
-    });
+  mapRight.on("load", async () => {
+    await addBoundary(mapRight);
 
     mapRight.setLayoutProperty("osm", "visibility", chkBasemap.checked ? "visible" : "none");
     mapRight.on("move", () => syncMaps(mapRight, map));
