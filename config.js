@@ -182,26 +182,17 @@ const CONFIG = {
 
   // ── Land Use / Land Cover raster (classified, not a temperature COG) ──
   lulc: {
-    url:          "./Data/RAK_LULC_cog.tif",
-    nodataValue:  0,
+    url:          "./Data/RAK_LULC_wgs84_cog.tif",
+    // Reprojection to WGS84 introduced edge/corner pixels outside the
+    // original data's footprint, filled with 127; the original raster's own
+    // background (outside RAK) is 0. Both render transparent — see
+    // renderLulcCanvas in app.js, which also treats any value absent from
+    // "classes" below as nodata, so this is mostly for documentation.
+    nodataValue:  127,
     opacity:      0.75,
 
-    // RAK_LULC_cog.tif is projected in UTM Zone 40N, not WGS84 like the LST
-    // COGs, so geotiff.js's own getBoundingBox() can't be used directly for
-    // map placement. These 4 corners were reprojected once (NW, NE, SE, SW)
-    // and are fixed for this specific raster's extent (confirmed unchanged
-    // from the original RAK_LULC.tif) — re-derive them (e.g. via
-    // rasterio.warp.transform) if the file is ever re-exported with a
-    // different extent.
-    coordinates: [
-      [55.7266537, 26.0662962],   // NW
-      [56.2741525, 26.0700875],   // NE
-      [56.2814912, 24.8403441],   // SE
-      [55.7395250, 24.8367560],   // SW
-    ],
-
-    // value → class name/color. RAK_LULC_cog.tif.vat.dbf only carries Value
-    // + Count now (no Class field), so names come from the project's LULC
+    // value → class name/color. RAK_LULC_wgs84_cog.tif.vat.dbf only carries
+    // Value + Count (no Class field), so names come from the project's LULC
     // symbology legend; colors are close visual matches to that legend, not
     // pixel-sampled — tweak freely.
     classes: [

@@ -621,11 +621,12 @@ async function onRoadsToggle() {
 
 // ── LULC (Land Use / Land Cover) classified raster ──────────────
 // Unlike the LST COGs this is categorical data (one flat color per class
-// value, from CONFIG.lulc.classes) rather than a continuous gradient, and
-// it's projected in UTM — CONFIG.lulc.coordinates are pre-reprojected WGS84
-// corners for map placement (see the comment in config.js).
+// value, from CONFIG.lulc.classes) rather than a continuous gradient.
+// RAK_LULC_wgs84_cog.tif is pre-reprojected to EPSG:4326, so — same as the
+// LST COGs — its own getBoundingBox() can be used directly for map
+// placement; no hardcoded corners needed.
 let lulcAdded = false;
-let lulcCache = null;   // { bbox: [west,south,east,north] approx, band, w, h }
+let lulcCache = null;   // { bbox: [west,south,east,north], band, w, h }
 
 function hexToRgb(hex) {
   const n = parseInt(hex.slice(1), 16);
@@ -671,17 +672,10 @@ async function onLulcToggle() {
     try {
       const tiff  = await GeoTIFF.fromUrl(CONFIG.lulc.url);
       const image = await tiff.getImage(0);
+      const bbox  = image.getBoundingBox();   // [west, south, east, north] in EPSG:4326
       const w     = image.getWidth();
       const h     = image.getHeight();
       const [band] = await image.readRasters({ interleave: false });
-
-      // Axis-aligned approximation of the 4 reprojected corners, used only
-      // for click-identify's lng/lat → pixel math — the tiny UTM-derived
-      // skew (well under 1% of the extent) isn't worth a full quadrilateral
-      // inverse-transform for a "what class is roughly here" popup.
-      const lons = CONFIG.lulc.coordinates.map(c => c[0]);
-      const lats = CONFIG.lulc.coordinates.map(c => c[1]);
-      const bbox = [Math.min(...lons), Math.min(...lats), Math.max(...lons), Math.max(...lats)];
 
       lulcCache = { bbox, band, w, h };
     } catch (err) {
@@ -692,10 +686,16 @@ async function onLulcToggle() {
     }
 
     const dataUrl = renderLulcCanvas(lulcCache.band, lulcCache.w, lulcCache.h);
+    const [west, south, east, north] = lulcCache.bbox;
     map.addSource("lulc-src", {
       type: "image",
       url: dataUrl,
-      coordinates: CONFIG.lulc.coordinates,
+      coordinates: [
+        [west, north], // NW
+        [east, north], // NE
+        [east, south], // SE
+        [west, south], // SW
+      ],
     });
     map.addLayer(
       { id: "lulc-layer", type: "raster", source: "lulc-src", paint: { "raster-opacity": CONFIG.lulc.opacity } },
