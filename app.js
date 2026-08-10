@@ -698,7 +698,17 @@ async function onLulcToggle() {
       ],
     });
     map.addLayer(
-      { id: "lulc-layer", type: "raster", source: "lulc-src", paint: { "raster-opacity": CONFIG.lulc.opacity } },
+      {
+        id: "lulc-layer", type: "raster", source: "lulc-src",
+        paint: {
+          "raster-opacity": CONFIG.lulc.opacity,
+          // Classified data — crisp class boundaries, not the smooth
+          // blending "linear" (the default) does between neighboring
+          // different-class pixels. That blending is what was making class
+          // edges look blurry/misaligned once zoomed in.
+          "raster-resampling": "nearest",
+        }
+      },
       "rak-boundary-fill"
     );
 
