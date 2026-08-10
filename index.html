@@ -1,225 +1,777 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <title id="pageTitle">RAK LST &amp; 3D Buildings</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
-  <link href="./styles.css" rel="stylesheet" />
-</head>
-<body>
-  <div id="map-container">
-    <div id="map" class="map-pane"></div>
-    <div id="map-divider" class="hidden"></div>
-    <div id="map-right" class="map-pane hidden"></div>
-  </div>
-  <!-- floating temperature chip that follows the cursor over the active COG -->
-  <div id="raster-probe"></div>
-  <!-- same, for the split view's right pane -->
-  <div id="raster-probe-right"></div>
+```html
+<!-- =========================================================
+     RAKCOC | Urban Climate & Thermal Comfort Map
+     Professional Map Control Panel
+     ========================================================= -->
 
+<aside class="map-panel" id="mapPanel">
 
-  <div id="panel">
+  <!-- ─────────────────────────────────────────────────────
+       PANEL HEADER
+       ───────────────────────────────────────────────────── -->
+  <header class="panel-header">
 
-    <!-- ── Header (always visible, toggle collapses body) ── -->
-    <div class="panel-header">
-      <span class="title" id="lblPanelTitle">RAK LST &amp; 3D Buildings</span>
-      <button id="btnCollapse" title="Collapse panel">−</button>
+    <div class="panel-branding">
+      <div class="panel-title-row">
+        <span class="panel-icon">◈</span>
+        <div>
+          <h2 class="panel-title" id="lblPanelTitle">
+            RAK Climate &amp; 3D Analysis
+          </h2>
+          <p class="panel-subtitle">
+            Land Surface Temperature &amp; Urban Environment
+          </p>
+        </div>
+      </div>
     </div>
 
-    <!-- ── Collapsible body ──────────────────────────────── -->
-    <div id="panel-body">
+    <button
+      id="btnCollapse"
+      class="panel-collapse"
+      type="button"
+      title="Collapse analysis panel"
+      aria-label="Collapse analysis panel"
+      aria-expanded="true"
+      aria-controls="panel-body">
+      −
+    </button>
 
-      <div id="status">Loading map...</div>
+  </header>
 
-      <!-- Basemap switcher -->
-      <div class="section-label" id="lblBasemapSection">Basemap</div>
-      <div class="layer-row">
-        <label class="layer-toggle">
-          <input type="checkbox" id="chkBasemap" checked />
-          <span id="lblBasemapToggle">Show Basemap</span>
-        </label>
-      </div>
-      <div id="basemap-switcher" class="basemap-switcher"></div>
 
-      <!-- Layers -->
-      <div class="section-label" id="lblLayersSection">Layers</div>
+  <!-- ─────────────────────────────────────────────────────
+       PANEL BODY
+       ───────────────────────────────────────────────────── -->
+  <div id="panel-body" class="panel-body">
 
-      <div class="layer-row">
-        <label class="layer-toggle">
-          <input type="checkbox" id="chkTerrain" />
-          <span id="lblTerrainLayer">DEM Terrain</span>
-        </label>
-      </div>
+    <!-- STATUS -->
+    <div id="status" class="map-status" role="status">
+      <span class="status-indicator"></span>
+      <span>Loading map data...</span>
+    </div>
 
-      <!-- WFS layer disabled in UI: TUM GeoServer blocks GitHub Pages' origin/IPs
-           with no CORS support. Code kept intact in config.js/app.js for reuse
-           on a host where the WFS endpoint is reachable. -->
-      <div class="layer-row hidden">
-        <label class="layer-toggle">
-          <input type="checkbox" id="chkWfs" />
-          <span id="lblWfsLayer">WFS GBA LoD1 Buildings</span>
-        </label>
-      </div>
 
-      <div class="layer-row">
-        <label class="layer-toggle">
-          <input type="checkbox" id="chkBuildings" />
-          <span id="lblBuildingsLayer">Buildings GeoJSON 3D</span>
-        </label>
-      </div>
-      <div id="buildings-loader" class="data-loader">
-        <span id="buildings-loader-label" class="data-loader-label">Loading</span>
-        <div class="loader-bar-track">
-          <div class="loader-bar-fill" id="buildings-loader-bar"></div>
-        </div>
-        <span id="buildings-loader-pct" class="data-loader-pct">0%</span>
-      </div>
+    <!-- ===================================================
+         BASEMAP
+         =================================================== -->
+    <section class="control-section">
 
-      <div class="layer-row">
-        <label class="layer-toggle">
-          <input type="checkbox" id="chkRoads" />
-          <span id="lblRoadsLayer">Roads</span>
-        </label>
-      </div>
-      <div id="roads-loader" class="data-loader">
-        <span id="roads-loader-label" class="data-loader-label">Loading</span>
-        <div class="loader-bar-track">
-          <div class="loader-bar-fill" id="roads-loader-bar"></div>
-        </div>
-        <span id="roads-loader-pct" class="data-loader-pct">0%</span>
-      </div>
-
-      <div class="layer-row">
-        <label class="layer-toggle">
-          <input type="checkbox" id="chkLulc" />
-          <span id="lblLulcLayer">Land Use / Land Cover</span>
-        </label>
-      </div>
-
-      <!-- LULC class legend — shown only when the layer is active -->
-      <div id="lulc-legend" class="hidden">
-        <div class="section-label" id="lblLulcLegendTitle" style="margin-top:8px">LULC Classes</div>
-        <div id="lulc-legend-swatches" class="lulc-legend-swatches"></div>
-      </div>
-
-      <!-- Temperature COGs -->
-      <div class="section-label" id="lblCogSection" style="margin-top:10px">Temperature COG (LST)</div>
-
-      <div class="cog-group">
-        <div class="cog-season" id="lblSeasonSummer">Summer</div>
-        <div class="cog-radios">
-          <label><input type="radio" name="cog" value="cog-summer-2000" /> 2000</label>
-          <label><input type="radio" name="cog" value="cog-summer-2009" /> 2009</label>
-          <label><input type="radio" name="cog" value="cog-summer-2012" /> 2012</label>
-          <label><input type="radio" name="cog" value="cog-summer-2015" /> 2015</label>
-          <label><input type="radio" name="cog" value="cog-summer-2020" /> 2020</label>
-          <label><input type="radio" name="cog" value="cog-summer-2025" /> 2025</label>
+      <div class="section-heading">
+        <div>
+          <h3 id="lblBasemapSection">Basemap</h3>
+          <p>Choose the underlying map reference.</p>
         </div>
       </div>
 
-      <div class="cog-group">
-        <div class="cog-season" id="lblSeasonWinter">Winter</div>
-        <div class="cog-radios">
-          <label><input type="radio" name="cog" value="cog-winter-2000" /> 2000</label>
-          <label><input type="radio" name="cog" value="cog-winter-2009" /> 2009</label>
-          <label><input type="radio" name="cog" value="cog-winter-2012" /> 2012</label>
-          <label><input type="radio" name="cog" value="cog-winter-2015" /> 2015</label>
-          <label><input type="radio" name="cog" value="cog-winter-2020" /> 2020</label>
-          <label><input type="radio" name="cog" value="cog-winter-2025" /> 2025</label>
+      <div class="control-card">
+
+        <label class="switch-control">
+          <input
+            type="checkbox"
+            id="chkBasemap"
+            checked
+            aria-label="Show basemap">
+
+          <span class="switch-slider"></span>
+
+          <span class="switch-label" id="lblBasemapToggle">
+            Show Basemap
+          </span>
+        </label>
+
+        <div
+          id="basemap-switcher"
+          class="basemap-switcher"
+          aria-label="Basemap options">
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- ===================================================
+         MAP LAYERS
+         =================================================== -->
+    <section class="control-section">
+
+      <div class="section-heading">
+        <div>
+          <h3 id="lblLayersSection">Map Layers</h3>
+          <p>Display environmental and urban features.</p>
         </div>
       </div>
 
-      <div class="cog-none">
-        <label><input type="radio" name="cog" value="" checked /> None</label>
+
+      <div class="control-card">
+
+        <!-- Terrain -->
+        <div class="layer-item">
+
+          <label class="layer-toggle">
+
+            <input
+              type="checkbox"
+              id="chkTerrain">
+
+            <span class="layer-check"></span>
+
+            <span class="layer-information">
+              <strong id="lblTerrainLayer">
+                Terrain
+              </strong>
+
+              <small>
+                Digital Elevation Model
+              </small>
+            </span>
+
+          </label>
+
+        </div>
+
+
+        <!-- Buildings -->
+        <div class="layer-item">
+
+          <label class="layer-toggle">
+
+            <input
+              type="checkbox"
+              id="chkBuildings">
+
+            <span class="layer-check"></span>
+
+            <span class="layer-information">
+
+              <strong id="lblBuildingsLayer">
+                3D Buildings
+              </strong>
+
+              <small>
+                Building footprint and height
+              </small>
+
+            </span>
+
+          </label>
+
+        </div>
+
+
+        <!-- Buildings Loading -->
+        <div
+          id="buildings-loader"
+          class="data-loader">
+
+          <div class="loader-header">
+
+            <span
+              id="buildings-loader-label"
+              class="data-loader-label">
+              Loading buildings
+            </span>
+
+            <span
+              id="buildings-loader-pct"
+              class="data-loader-pct">
+              0%
+            </span>
+
+          </div>
+
+          <div class="loader-bar-track">
+
+            <div
+              class="loader-bar-fill"
+              id="buildings-loader-bar">
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <!-- Roads -->
+        <div class="layer-item">
+
+          <label class="layer-toggle">
+
+            <input
+              type="checkbox"
+              id="chkRoads">
+
+            <span class="layer-check"></span>
+
+            <span class="layer-information">
+
+              <strong id="lblRoadsLayer">
+                Road Network
+              </strong>
+
+              <small>
+                Major roads and streets
+              </small>
+
+            </span>
+
+          </label>
+
+        </div>
+
+
+        <!-- Roads Loading -->
+        <div
+          id="roads-loader"
+          class="data-loader">
+
+          <div class="loader-header">
+
+            <span
+              id="roads-loader-label"
+              class="data-loader-label">
+              Loading roads
+            </span>
+
+            <span
+              id="roads-loader-pct"
+              class="data-loader-pct">
+              0%
+            </span>
+
+          </div>
+
+          <div class="loader-bar-track">
+
+            <div
+              class="loader-bar-fill"
+              id="roads-loader-bar">
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <!-- LULC -->
+        <div class="layer-item">
+
+          <label class="layer-toggle">
+
+            <input
+              type="checkbox"
+              id="chkLulc">
+
+            <span class="layer-check"></span>
+
+            <span class="layer-information">
+
+              <strong id="lblLulcLayer">
+                Land Use / Land Cover
+              </strong>
+
+              <small>
+                Urban, vegetation and natural surfaces
+              </small>
+
+            </span>
+
+          </label>
+
+        </div>
+
+
+        <!-- LULC Legend -->
+        <div
+          id="lulc-legend"
+          class="layer-legend hidden">
+
+          <div
+            class="legend-subtitle"
+            id="lblLulcLegendTitle">
+            Land Cover Classes
+          </div>
+
+          <div
+            id="lulc-legend-swatches"
+            class="lulc-legend-swatches">
+          </div>
+
+        </div>
+
       </div>
 
-      <!-- Raster opacity — shown only when a COG layer is active -->
-      <div id="cog-opacity-row" class="hidden">
-        <div class="section-label" style="margin-top:8px">Raster Opacity</div>
+    </section>
+
+
+    <!-- ===================================================
+         LAND SURFACE TEMPERATURE
+         =================================================== -->
+    <section class="control-section temperature-section">
+
+      <div class="section-heading">
+
+        <div>
+
+          <h3 id="lblCogSection">
+            Land Surface Temperature
+          </h3>
+
+          <p>
+            Select a seasonal LST dataset for analysis.
+          </p>
+
+        </div>
+
+      </div>
+
+
+      <!-- Summer -->
+      <div class="analysis-card">
+
+        <div class="analysis-card-header">
+
+          <div class="season-icon summer-icon">
+            ☀
+          </div>
+
+          <div>
+            <strong id="lblSeasonSummer">
+              Summer
+            </strong>
+
+            <small>
+              Hot-season surface temperature
+            </small>
+          </div>
+
+        </div>
+
+
+        <div class="year-selector">
+
+          <label>
+            <input
+              type="radio"
+              name="cog"
+              value="cog-summer-2000">
+            <span>2000</span>
+          </label>
+
+          <label>
+            <input
+              type="radio"
+              name="cog"
+              value="cog-summer-2009">
+            <span>2009</span>
+          </label>
+
+          <label>
+            <input
+              type="radio"
+              name="cog"
+              value="cog-summer-2012">
+            <span>2012</span>
+          </label>
+
+          <label>
+            <input
+              type="radio"
+              name="cog"
+              value="cog-summer-2015">
+            <span>2015</span>
+          </label>
+
+          <label>
+            <input
+              type="radio"
+              name="cog"
+              value="cog-summer-2020">
+            <span>2020</span>
+          </label>
+
+          <label>
+            <input
+              type="radio"
+              name="cog"
+              value="cog-summer-2025">
+            <span>2025</span>
+          </label>
+
+        </div>
+
+      </div>
+
+
+      <!-- Winter -->
+      <div class="analysis-card">
+
+        <div class="analysis-card-header">
+
+          <div class="season-icon winter-icon">
+            ❄
+          </div>
+
+          <div>
+
+            <strong id="lblSeasonWinter">
+              Winter
+            </strong>
+
+            <small>
+              Cool-season surface temperature
+            </small>
+
+          </div>
+
+        </div>
+
+
+        <div class="year-selector">
+
+          <label>
+            <input
+              type="radio"
+              name="cog"
+              value="cog-winter-2000">
+            <span>2000</span>
+          </label>
+
+          <label>
+            <input
+              type="radio"
+              name="cog"
+              value="cog-winter-2009">
+            <span>2009</span>
+          </label>
+
+          <label>
+            <input
+              type="radio"
+              name="cog"
+              value="cog-winter-2012">
+            <span>2012</span>
+          </label>
+
+          <label>
+            <input
+              type="radio"
+              name="cog"
+              value="cog-winter-2015">
+            <span>2015</span>
+          </label>
+
+          <label>
+            <input
+              type="radio"
+              name="cog"
+              value="cog-winter-2020">
+            <span>2020</span>
+          </label>
+
+          <label>
+            <input
+              type="radio"
+              name="cog"
+              value="cog-winter-2025">
+            <span>2025</span>
+          </label>
+
+        </div>
+
+      </div>
+
+
+      <!-- Clear LST -->
+      <div class="clear-analysis">
+
+        <label>
+
+          <input
+            type="radio"
+            name="cog"
+            value=""
+            checked>
+
+          <span>
+            Clear temperature layer
+          </span>
+
+        </label>
+
+      </div>
+
+
+      <!-- =================================================
+           LST DISPLAY SETTINGS
+           ================================================= -->
+
+      <div
+        id="cog-opacity-row"
+        class="analysis-settings hidden">
+
+        <div class="setting-title">
+          Layer Opacity
+        </div>
+
         <div class="slider-row">
-          <input type="range" id="cogOpacity" min="0" max="100" value="78" />
-          <span id="cogOpacityVal">78%</span>
+
+          <input
+            type="range"
+            id="cogOpacity"
+            min="0"
+            max="100"
+            value="78"
+            aria-label="Temperature layer opacity">
+
+          <output id="cogOpacityVal">
+            78%
+          </output>
+
         </div>
+
       </div>
 
-      <!-- Symbology value range — shown only when a COG layer is active -->
-      <div id="cog-range-row" class="hidden">
-        <div class="section-label" style="margin-top:8px">Value Range (°C)</div>
+
+      <!-- Value Range -->
+      <div
+        id="cog-range-row"
+        class="analysis-settings hidden">
+
+        <div class="setting-title">
+          Temperature Range
+        </div>
+
         <div class="range-row">
-          <label>Min <input type="number" id="cogRangeMin" step="1" /></label>
-          <label>Max <input type="number" id="cogRangeMax" step="1" /></label>
-          <button id="btnRangeReset" title="Reset to default range">Reset</button>
+
+          <label>
+            <span>Minimum</span>
+            <input
+              type="number"
+              id="cogRangeMin"
+              step="1">
+          </label>
+
+          <label>
+            <span>Maximum</span>
+            <input
+              type="number"
+              id="cogRangeMax"
+              step="1">
+          </label>
+
+          <button
+            id="btnRangeReset"
+            type="button"
+            title="Reset temperature range">
+            Reset
+          </button>
+
         </div>
+
       </div>
 
-      <!-- Temperature legend -->
-      <div class="legend">
-        <div class="legend-title" id="lblLegendTitle">LST (°C)</div>
+
+      <!-- =================================================
+           TEMPERATURE LEGEND
+           ================================================= -->
+
+      <div class="temperature-legend">
+
+        <div class="legend-header">
+
+          <span id="lblLegendTitle">
+            Land Surface Temperature
+          </span>
+
+          <span>
+            °C
+          </span>
+
+        </div>
+
         <div class="legend-bar"></div>
-        <div class="legend-labels" id="lblLegendTicks">
+
+        <div
+          class="legend-labels"
+          id="lblLegendTicks">
+
           <span>-30</span>
           <span>0</span>
           <span>15</span>
           <span>40</span>
           <span>60</span>
+
         </div>
+
       </div>
 
-      <!-- Split-view COG comparison -->
-      <div class="section-label" id="lblCompareSection" style="margin-top:10px">Compare</div>
-      <div class="layer-row">
-        <label class="layer-toggle">
-          <input type="checkbox" id="chkSplit" />
-          <span id="lblSplitToggle">Split View</span>
+    </section>
+
+
+    <!-- ===================================================
+         COMPARISON
+         =================================================== -->
+    <section class="control-section">
+
+      <div class="section-heading">
+
+        <div>
+
+          <h3 id="lblCompareSection">
+            Spatial Comparison
+          </h3>
+
+          <p>
+            Compare two temperature datasets side by side.
+          </p>
+
+        </div>
+
+      </div>
+
+
+      <div class="control-card">
+
+        <label class="switch-control">
+
+          <input
+            type="checkbox"
+            id="chkSplit">
+
+          <span class="switch-slider"></span>
+
+          <span
+            class="switch-label"
+            id="lblSplitToggle">
+            Enable Split View
+          </span>
+
         </label>
-      </div>
-      <div id="split-controls" class="hidden">
-        <div class="row">
-          <label>
-            <input id="chkLinkMaps" type="checkbox" checked />
-            Link movement
+
+
+        <div
+          id="split-controls"
+          class="comparison-controls hidden">
+
+          <label class="checkbox-control">
+
+            <input
+              id="chkLinkMaps"
+              type="checkbox"
+              checked>
+
+            <span>
+              Synchronize map movement
+            </span>
+
           </label>
-        </div>
-        <div class="row">
-          <label>
-            Right pane: <select id="rightCogSelect"></select>
+
+
+          <label class="select-control">
+
+            <span>
+              Comparison dataset
+            </span>
+
+            <select id="rightCogSelect"></select>
+
           </label>
+
         </div>
+
       </div>
 
-      <!-- WFS controls — shown only when WFS layer is enabled -->
-      <div id="wfsControls" class="hidden">
-        <div class="section-label" style="margin-top:10px">WFS Controls</div>
-        <div class="row">
-          <label>
-            <input id="autoLoad" type="checkbox" checked />
-            Auto-load visible bbox
-          </label>
+    </section>
+
+
+    <!-- ===================================================
+         ADVANCED DATA SERVICES
+         =================================================== -->
+    <section
+      id="wfsControls"
+      class="control-section advanced-section hidden">
+
+      <div class="section-heading">
+
+        <div>
+
+          <h3>
+            Advanced Data Services
+          </h3>
+
+          <p>
+            Configure live building data requests.
+          </p>
+
         </div>
-        <div class="row">
-          <button id="btnLoad">Load visible</button>
-          <button id="btnClear">Clear cache</button>
-        </div>
+
       </div>
 
-      <div class="small" id="lblFooterNote">COGs served via IIS. Buildings visible at zoom 15+.</div>
 
-    </div><!-- /panel-body -->
-  </div><!-- /panel -->
+      <div class="control-card">
 
-  <div id="map-credits">
-    Built by <a href="mailto:jamil.garzuzi@gmail.com">Jamil Garzuzi</a>
+        <label class="checkbox-control">
+
+          <input
+            id="autoLoad"
+            type="checkbox"
+            checked>
+
+          <span>
+            Automatically load visible area
+          </span>
+
+        </label>
+
+
+        <div class="button-row">
+
+          <button
+            id="btnLoad"
+            type="button"
+            class="primary-button">
+            Load Visible Area
+          </button>
+
+          <button
+            id="btnClear"
+            type="button"
+            class="secondary-button">
+            Clear Cache
+          </button>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- ===================================================
+         FOOTER / DATA INFORMATION
+         =================================================== -->
+    <footer class="panel-footer">
+
+      <div class="data-source">
+
+        <span class="data-source-icon">
+          ●
+        </span>
+
+        <span id="lblFooterNote">
+          Temperature data served through COG infrastructure.
+        </span>
+
+      </div>
+
+      <div class="map-resolution">
+        3D buildings available at higher zoom levels.
+      </div>
+
+    </footer>
+
   </div>
 
-  <!-- lat/lng under the cursor, updates on mousemove -->
-  <div id="mouse-coords">–</div>
-
-  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
-  <!-- geotiff.js: COG/GeoTIFF parser with HTTP range-request support; exposes window.GeoTIFF -->
-  <script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js"></script>
-  <!-- config.js must be loaded before app.js — it defines the global CONFIG object -->
-  <script src="./config.js"></script>
-  <script src="./app.js"></script>
-</body>
-</html>
+</aside>
+```
