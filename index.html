@@ -1,672 +1,262 @@
 ```html
-<!-- =========================================================
-     RAKCOC | RAK LST & 3D Buildings
-     Map Control Panel
-     ========================================================= -->
-
-<!-- ── Header ───────────────────────────────────────────── -->
+<!-- ── Header (always visible, toggle collapses body) ── -->
 <div class="panel-header">
-
-  <span class="title" id="lblPanelTitle">
-    RAK LST &amp; 3D Buildings
-  </span>
-
-  <button
-    id="btnCollapse"
-    title="Collapse panel"
-    aria-label="Collapse panel">
-    −
-  </button>
-
+  <span class="title" id="lblPanelTitle">RAK LST &amp; 3D Buildings</span>
+  <button id="btnCollapse" title="Collapse panel">−</button>
 </div>
 
-
-<!-- ── Collapsible Body ─────────────────────────────────── -->
+<!-- ── Collapsible body ──────────────────────────────── -->
 <div id="panel-body">
 
-  <!-- ── Map Status ─────────────────────────────────────── -->
-  <div id="status">
-    Loading map...
+  <div id="status">Loading map...</div>
+
+  <!-- Basemap switcher -->
+  <div class="section-label" id="lblBasemapSection">Basemap</div>
+  <div class="layer-row">
+    <label class="layer-toggle">
+      <input type="checkbox" id="chkBasemap" checked />
+      <span id="lblBasemapToggle">Show Basemap</span>
+    </label>
   </div>
+  <div id="basemap-switcher" class="basemap-switcher"></div>
 
-
-  <!-- =====================================================
-       BASEMAP
-       ===================================================== -->
-
-  <div
-    class="section-label"
-    id="lblBasemapSection">
-
-    Basemap
-
-  </div>
+  <!-- Layers -->
+  <div class="section-label" id="lblLayersSection">Layers</div>
 
   <div class="layer-row">
-
     <label class="layer-toggle">
-
-      <input
-        type="checkbox"
-        id="chkBasemap"
-        checked />
-
-      <span id="lblBasemapToggle">
-        Show Basemap
-      </span>
-
+      <input type="checkbox" id="chkTerrain" />
+      <span id="lblTerrainLayer">DEM Terrain</span>
     </label>
-
   </div>
 
-  <div
-    id="basemap-switcher"
-    class="basemap-switcher">
-  </div>
-
-
-  <!-- =====================================================
-       MAP LAYERS
-       ===================================================== -->
-
-  <div
-    class="section-label"
-    id="lblLayersSection">
-
-    Map Layers
-
-  </div>
-
-
-  <!-- Terrain -->
-  <div class="layer-row">
-
-    <label class="layer-toggle">
-
-      <input
-        type="checkbox"
-        id="chkTerrain" />
-
-      <span id="lblTerrainLayer">
-        DEM Terrain
-      </span>
-
-    </label>
-
-  </div>
-
-
-  <!-- WFS layer disabled in UI.
-       The TUM GeoServer endpoint currently blocks
-       GitHub Pages origins because CORS is unavailable.
-       The code remains available in config.js/app.js
-       for deployment on a compatible host. -->
-
+  <!-- WFS layer disabled in UI: TUM GeoServer blocks GitHub Pages' origin/IPs
+       with no CORS support. Code kept intact in config.js/app.js for reuse
+       on a host where the WFS endpoint is reachable. -->
   <div class="layer-row hidden">
-
     <label class="layer-toggle">
-
-      <input
-        type="checkbox"
-        id="chkWfs" />
-
-      <span id="lblWfsLayer">
-        WFS GBA LoD1 Buildings
-      </span>
-
+      <input type="checkbox" id="chkWfs" />
+      <span id="lblWfsLayer">WFS GBA LoD1 Buildings</span>
     </label>
-
   </div>
 
-
-  <!-- 3D Buildings -->
   <div class="layer-row">
-
     <label class="layer-toggle">
-
-      <input
-        type="checkbox"
-        id="chkBuildings" />
-
-      <span id="lblBuildingsLayer">
-        3D Buildings
-      </span>
-
+      <input type="checkbox" id="chkBuildings" />
+      <span id="lblBuildingsLayer">Buildings GeoJSON 3D</span>
     </label>
-
   </div>
 
-
-  <!-- Buildings Loading -->
-  <div
-    id="buildings-loader"
-    class="data-loader">
-
-    <span
-      id="buildings-loader-label"
-      class="data-loader-label">
-      Loading
-    </span>
-
+  <div id="buildings-loader" class="data-loader">
+    <span id="buildings-loader-label" class="data-loader-label">Loading</span>
     <div class="loader-bar-track">
-
-      <div
-        class="loader-bar-fill"
-        id="buildings-loader-bar">
-      </div>
-
+      <div class="loader-bar-fill" id="buildings-loader-bar"></div>
     </div>
-
-    <span
-      id="buildings-loader-pct"
-      class="data-loader-pct">
-      0%
-    </span>
-
+    <span id="buildings-loader-pct" class="data-loader-pct">0%</span>
   </div>
 
-
-  <!-- Roads -->
   <div class="layer-row">
-
     <label class="layer-toggle">
-
-      <input
-        type="checkbox"
-        id="chkRoads" />
-
-      <span id="lblRoadsLayer">
-        Road Network
-      </span>
-
+      <input type="checkbox" id="chkRoads" />
+      <span id="lblRoadsLayer">Roads</span>
     </label>
-
   </div>
 
-
-  <!-- Roads Loading -->
-  <div
-    id="roads-loader"
-    class="data-loader">
-
-    <span
-      id="roads-loader-label"
-      class="data-loader-label">
-      Loading
-    </span>
-
+  <div id="roads-loader" class="data-loader">
+    <span id="roads-loader-label" class="data-loader-label">Loading</span>
     <div class="loader-bar-track">
-
-      <div
-        class="loader-bar-fill"
-        id="roads-loader-bar">
-      </div>
-
+      <div class="loader-bar-fill" id="roads-loader-bar"></div>
     </div>
-
-    <span
-      id="roads-loader-pct"
-      class="data-loader-pct">
-      0%
-    </span>
-
+    <span id="roads-loader-pct" class="data-loader-pct">0%</span>
   </div>
 
-
-  <!-- Land Use / Land Cover -->
   <div class="layer-row">
-
     <label class="layer-toggle">
-
-      <input
-        type="checkbox"
-        id="chkLulc" />
-
-      <span id="lblLulcLayer">
-        Land Use / Land Cover
-      </span>
-
+      <input type="checkbox" id="chkLulc" />
+      <span id="lblLulcLayer">Land Use / Land Cover</span>
     </label>
-
   </div>
 
-
-  <!-- LULC Legend -->
-  <div
-    id="lulc-legend"
-    class="hidden">
-
-    <div
-      class="section-label"
-      id="lblLulcLegendTitle"
-      style="margin-top:8px">
-
+  <!-- LULC class legend — shown only when the layer is active -->
+  <div id="lulc-legend" class="hidden">
+    <div class="section-label" id="lblLulcLegendTitle" style="margin-top:8px">
       LULC Classes
-
     </div>
-
-    <div
-      id="lulc-legend-swatches"
-      class="lulc-legend-swatches">
-    </div>
-
+    <div id="lulc-legend-swatches" class="lulc-legend-swatches"></div>
   </div>
 
-
-  <!-- =====================================================
-       LAND SURFACE TEMPERATURE
-       ===================================================== -->
-
-  <div
-    class="section-label"
-    id="lblCogSection"
-    style="margin-top:10px">
-
-    Land Surface Temperature (LST)
-
+  <!-- Temperature COGs -->
+  <div class="section-label" id="lblCogSection" style="margin-top:10px">
+    Temperature COG (LST)
   </div>
-
-
-  <!-- ── Summer LST ────────────────────────────────────── -->
 
   <div class="cog-group">
-
-    <div
-      class="cog-season"
-      id="lblSeasonSummer">
-
-      Summer
-
-    </div>
-
+    <div class="cog-season" id="lblSeasonSummer">Summer</div>
     <div class="cog-radios">
-
       <label>
-        <input
-          type="radio"
-          name="cog"
-          value="cog-summer-2000" />
+        <input type="radio" name="cog" value="cog-summer-2000" />
         2000
       </label>
-
       <label>
-        <input
-          type="radio"
-          name="cog"
-          value="cog-summer-2009" />
+        <input type="radio" name="cog" value="cog-summer-2009" />
         2009
       </label>
-
       <label>
-        <input
-          type="radio"
-          name="cog"
-          value="cog-summer-2012" />
+        <input type="radio" name="cog" value="cog-summer-2012" />
         2012
       </label>
-
       <label>
-        <input
-          type="radio"
-          name="cog"
-          value="cog-summer-2015" />
+        <input type="radio" name="cog" value="cog-summer-2015" />
         2015
       </label>
-
       <label>
-        <input
-          type="radio"
-          name="cog"
-          value="cog-summer-2020" />
+        <input type="radio" name="cog" value="cog-summer-2020" />
         2020
       </label>
-
       <label>
-        <input
-          type="radio"
-          name="cog"
-          value="cog-summer-2025" />
+        <input type="radio" name="cog" value="cog-summer-2025" />
         2025
       </label>
-
     </div>
-
   </div>
-
-
-  <!-- ── Winter LST ────────────────────────────────────── -->
 
   <div class="cog-group">
-
-    <div
-      class="cog-season"
-      id="lblSeasonWinter">
-
-      Winter
-
-    </div>
-
+    <div class="cog-season" id="lblSeasonWinter">Winter</div>
     <div class="cog-radios">
-
       <label>
-        <input
-          type="radio"
-          name="cog"
-          value="cog-winter-2000" />
+        <input type="radio" name="cog" value="cog-winter-2000" />
         2000
       </label>
-
       <label>
-        <input
-          type="radio"
-          name="cog"
-          value="cog-winter-2009" />
+        <input type="radio" name="cog" value="cog-winter-2009" />
         2009
       </label>
-
       <label>
-        <input
-          type="radio"
-          name="cog"
-          value="cog-winter-2012" />
+        <input type="radio" name="cog" value="cog-winter-2012" />
         2012
       </label>
-
       <label>
-        <input
-          type="radio"
-          name="cog"
-          value="cog-winter-2015" />
+        <input type="radio" name="cog" value="cog-winter-2015" />
         2015
       </label>
-
       <label>
-        <input
-          type="radio"
-          name="cog"
-          value="cog-winter-2020" />
+        <input type="radio" name="cog" value="cog-winter-2020" />
         2020
       </label>
-
       <label>
-        <input
-          type="radio"
-          name="cog"
-          value="cog-winter-2025" />
+        <input type="radio" name="cog" value="cog-winter-2025" />
         2025
       </label>
-
     </div>
-
   </div>
-
-
-  <!-- ── Clear LST ─────────────────────────────────────── -->
 
   <div class="cog-none">
-
     <label>
-
-      <input
-        type="radio"
-        name="cog"
-        value=""
-        checked />
-
+      <input type="radio" name="cog" value="" checked />
       None
-
     </label>
-
   </div>
 
-
-  <!-- =====================================================
-       LST DISPLAY SETTINGS
-       ===================================================== -->
-
-  <!-- Raster Opacity -->
-  <div
-    id="cog-opacity-row"
-    class="hidden">
-
-    <div
-      class="section-label"
-      style="margin-top:8px">
-
+  <!-- Raster opacity — shown only when a COG layer is active -->
+  <div id="cog-opacity-row" class="hidden">
+    <div class="section-label" style="margin-top:8px">
       Raster Opacity
-
     </div>
-
     <div class="slider-row">
-
-      <input
-        type="range"
-        id="cogOpacity"
-        min="0"
-        max="100"
-        value="78" />
-
-      <span id="cogOpacityVal">
-        78%
-      </span>
-
+      <input type="range" id="cogOpacity" min="0" max="100" value="78" />
+      <span id="cogOpacityVal">78%</span>
     </div>
-
   </div>
 
-
-  <!-- Temperature Range -->
-  <div
-    id="cog-range-row"
-    class="hidden">
-
-    <div
-      class="section-label"
-      style="margin-top:8px">
-
-      Temperature Range (°C)
-
+  <!-- Symbology value range — shown only when a COG layer is active -->
+  <div id="cog-range-row" class="hidden">
+    <div class="section-label" style="margin-top:8px">
+      Value Range (°C)
     </div>
-
     <div class="range-row">
-
       <label>
         Min
-        <input
-          type="number"
-          id="cogRangeMin"
-          step="1" />
+        <input type="number" id="cogRangeMin" step="1" />
       </label>
-
       <label>
         Max
-        <input
-          type="number"
-          id="cogRangeMax"
-          step="1" />
+        <input type="number" id="cogRangeMax" step="1" />
       </label>
-
-      <button
-        id="btnRangeReset"
-        title="Reset to default temperature range">
-
+      <button id="btnRangeReset" title="Reset to default range">
         Reset
-
       </button>
-
     </div>
-
   </div>
 
-
-  <!-- =====================================================
-       TEMPERATURE LEGEND
-       ===================================================== -->
-
+  <!-- Temperature legend -->
   <div class="legend">
-
-    <div
-      class="legend-title"
-      id="lblLegendTitle">
-
-      Land Surface Temperature (°C)
-
+    <div class="legend-title" id="lblLegendTitle">
+      LST (°C)
     </div>
-
     <div class="legend-bar"></div>
-
-    <div
-      class="legend-labels"
-      id="lblLegendTicks">
-
+    <div class="legend-labels" id="lblLegendTicks">
       <span>-30</span>
       <span>0</span>
       <span>15</span>
       <span>40</span>
       <span>60</span>
-
     </div>
-
   </div>
 
-
-  <!-- =====================================================
-       SPATIAL COMPARISON
-       ===================================================== -->
-
-  <div
-    class="section-label"
-    id="lblCompareSection"
-    style="margin-top:10px">
-
-    Spatial Comparison
-
+  <!-- Split-view COG comparison -->
+  <div class="section-label" id="lblCompareSection" style="margin-top:10px">
+    Compare
   </div>
-
 
   <div class="layer-row">
-
     <label class="layer-toggle">
-
-      <input
-        type="checkbox"
-        id="chkSplit" />
-
-      <span id="lblSplitToggle">
-        Split View
-      </span>
-
+      <input type="checkbox" id="chkSplit" />
+      <span id="lblSplitToggle">Split View</span>
     </label>
-
   </div>
 
-
-  <!-- Split View Controls -->
-  <div
-    id="split-controls"
-    class="hidden">
+  <div id="split-controls" class="hidden">
 
     <div class="row">
-
       <label>
-
-        <input
-          id="chkLinkMaps"
-          type="checkbox"
-          checked />
-
-        Link Map Movement
-
+        <input id="chkLinkMaps" type="checkbox" checked />
+        Link movement
       </label>
-
     </div>
 
-
     <div class="row">
-
       <label>
-
-        Right Pane:
-
-        <select id="rightCogSelect">
-        </select>
-
+        Right pane:
+        <select id="rightCogSelect"></select>
       </label>
-
     </div>
 
   </div>
 
+  <!-- WFS controls — shown only when WFS layer is enabled -->
+  <div id="wfsControls" class="hidden">
 
-  <!-- =====================================================
-       ADVANCED WFS CONTROLS
-       ===================================================== -->
-
-  <!-- Shown only when the WFS layer is enabled -->
-
-  <div
-    id="wfsControls"
-    class="hidden">
-
-    <div
-      class="section-label"
-      style="margin-top:10px">
-
-      Advanced Data Controls
-
+    <div class="section-label" style="margin-top:10px">
+      WFS Controls
     </div>
 
-
     <div class="row">
-
       <label>
-
-        <input
-          id="autoLoad"
-          type="checkbox"
-          checked />
-
-        Auto-load Visible Area
-
+        <input id="autoLoad" type="checkbox" checked />
+        Auto-load visible bbox
       </label>
-
     </div>
-
 
     <div class="row">
-
-      <button
-        id="btnLoad">
-
-        Load Visible Area
-
-      </button>
-
-      <button
-        id="btnClear">
-
-        Clear Cache
-
-      </button>
-
+      <button id="btnLoad">Load visible</button>
+      <button id="btnClear">Clear cache</button>
     </div>
 
   </div>
 
-
-  <!-- =====================================================
-       FOOTER / DATA INFORMATION
-       ===================================================== -->
-
-  <div
-    class="small"
-    id="lblFooterNote">
-
-    LST data served via IIS.
-    3D buildings are visible at zoom level 15 and above.
-
+  <div class="small" id="lblFooterNote">
+    COGs served via IIS. Buildings visible at zoom 15+.
   </div>
-
 
 </div>
 <!-- /panel-body -->
