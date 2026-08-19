@@ -175,6 +175,24 @@ chkBasemap.addEventListener("change", () => {
   basemapSwitcher.classList.toggle("disabled", !chkBasemap.checked);
 });
 
+// ── Left-panel COG radio buttons (built from config) ─────────────
+// Grouped by season into the two containers already in index.html — adding
+// a new year to CONFIG.cogLayers is enough, no HTML edits needed.
+const cogRadiosBySeasonEl = {
+  summer: document.getElementById("cog-radios-summer"),
+  winter: document.getElementById("cog-radios-winter"),
+};
+COG_LAYERS.forEach(def => {
+  const label = document.createElement("label");
+  const input = document.createElement("input");
+  input.type  = "radio";
+  input.name  = "cog";
+  input.value = def.id;
+  label.appendChild(input);
+  label.appendChild(document.createTextNode(` ${def.label}`));
+  cogRadiosBySeasonEl[def.season].appendChild(label);
+});
+
 // ── Right-pane COG dropdown (built from config) ─────────────────
 const rightNoneOpt = document.createElement("option");
 rightNoneOpt.value = "";

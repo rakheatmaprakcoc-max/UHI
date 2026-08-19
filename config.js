@@ -45,12 +45,14 @@ const CONFIG = {
     { id: "cog-summer-2015", label: "2015", season: "summer", url: "./Data/RAK_Summer_2015_LST_Celsius_cog.tif" },
     { id: "cog-summer-2020", label: "2020", season: "summer", url: "./Data/RAK_Summer_2020_LST_Celsius_cog.tif" },
     { id: "cog-summer-2025", label: "2025", season: "summer", url: "./Data/RAK_Summer_2025_LST_Celsius_cog.tif" },
+    { id: "cog-summer-2026", label: "2026", season: "summer", url: "./Data/RAK_Summer_2026_LST_Celsius_cog.tif" },
     { id: "cog-winter-2000", label: "2000", season: "winter", url: "./Data/RAK_Winter_2000_LST_Celsius_cog.tif" },
     { id: "cog-winter-2009", label: "2009", season: "winter", url: "./Data/RAK_Winter_2009_LST_Celsius_cog.tif" },
     { id: "cog-winter-2012", label: "2012", season: "winter", url: "./Data/RAK_Winter_2012_LST_Celsius_cog.tif" },
     { id: "cog-winter-2015", label: "2015", season: "winter", url: "./Data/RAK_Winter_2015_LST_Celsius_cog.tif" },
     { id: "cog-winter-2020", label: "2020", season: "winter", url: "./Data/RAK_Winter_2020_LST_Celsius_cog.tif" },
     { id: "cog-winter-2025", label: "2025", season: "winter", url: "./Data/RAK_Winter_2025_LST_Celsius_cog.tif" },
+    { id: "cog-winter-2026", label: "2026", season: "winter", url: "./Data/RAK_Winter_2026_LST_Celsius_cog.tif" },
   ],
 
   // ── Basemap options ───────────────────────────────────────
