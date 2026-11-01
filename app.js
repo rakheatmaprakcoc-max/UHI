@@ -464,13 +464,18 @@ async function fetchGeojsonWithProgress(url, loaderRefs) {
   const reader = res.body.getReader();
   const chunks = [];
   let received = 0;
-
+  let percent  = 0;
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
     chunks.push(value);
     received += value.length;
-    showLoader(loaderRefs, total ? Math.round(received / total * 100) : null);
+    percent = Math.round(received / total * 100);
+    if (percent> 100) 
+    {
+        percent = 100;
+    }
+    showLoader(loaderRefs, total ? percent : null);
   }
 
   const text = await new Blob(chunks).text();
